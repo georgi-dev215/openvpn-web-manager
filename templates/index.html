@@ -1,0 +1,862 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Server Status Card -->
+    <div class="card server-status-card">
+        <div class="card-header">
+            <h6 class="card-title text-white">
+                <i class="bi bi-server"></i>
+                Server Status
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="server-metrics">
+                <div class="metric-item">
+                    <div class="metric-value">
+                            {% if server_status %}
+                            <i class="bi bi-check-circle-fill me-1"></i>Online
+                            {% else %}
+                            <i class="bi bi-x-circle-fill me-1"></i>Offline
+                            {% endif %}
+                    </div>
+                    <div class="metric-label">Status</div>
+                    </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.port or 'N/A' }}</div>
+                    <div class="metric-label">Port</div>
+                    </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.protocol or 'N/A' }}</div>
+                    <div class="metric-label">Protocol</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.local_ip or 'N/A' }}</div>
+                    <div class="metric-label">Server IP</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Connections Stats -->
+    <div class="card stat-primary">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-wifi"></i>
+            </div>
+            <div class="stat-value active-connections-count">{{ server_stats.active_connections }}</div>
+            <div class="stat-label">Active Connections</div>
+        </div>
+    </div>
+
+    <!-- Active Clients Stats -->
+    <div class="card stat-success">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-value">{{ clients|selectattr('status', 'equalto', 'active')|list|length }}</div>
+            <div class="stat-label">Active Clients</div>
+        </div>
+    </div>
+
+    <!-- Cluster Servers Stats -->
+    <div class="card stat-cluster">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-hdd-network"></i>
+            </div>
+            <div class="stat-value cluster-servers-count">0</div>
+            <div class="stat-label">Cluster Servers</div>
+            <div class="stat-subtitle cluster-servers-status">Loading...</div>
+        </div>
+    </div>
+
+    <!-- Data Sent Stats -->
+    <div class="card stat-info">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-up-circle"></i>
+            </div>
+            <div class="stat-value bytes-sent">{{ (server_stats.total_bytes_sent / 1024 / 1024) | round(1) }}</div>
+            <div class="stat-label">MB Sent</div>
+        </div>
+    </div>
+
+    <!-- Data Received Stats -->
+    <div class="card stat-warning">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-down-circle"></i>
+            </div>
+            <div class="stat-value bytes-received">{{ (server_stats.total_bytes_received / 1024 / 1024) | round(1) }}</div>
+            <div class="stat-label">MB Received</div>
+        </div>
+    </div>
+
+    <!-- CPU Usage Stats -->
+    <div class="card stat-danger">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <div class="stat-value cpu-usage">0.0</div>
+            <div class="stat-label">CPU %</div>
+        </div>
+    </div>
+
+    <!-- Memory Usage Stats -->
+    <div class="card stat-secondary">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-memory"></i>
+            </div>
+            <div class="stat-value memory-usage">0.0</div>
+            <div class="stat-label">RAM %</div>
+        </div>
+    </div>
+
+    <!-- Upload Speed Stats -->
+    <div class="card stat-upload">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-up-square"></i>
+            </div>
+            <div class="stat-value upload-speed">0.0</div>
+            <div class="stat-label">Upload Mbps</div>
+        </div>
+    </div>
+
+    <!-- Download Speed Stats -->
+    <div class="card stat-download">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-down-square"></i>
+            </div>
+            <div class="stat-value download-speed">0.0</div>
+            <div class="stat-label">Download Mbps</div>
+        </div>
+    </div>
+</div>
+
+<!-- Add New Client Form -->
+        <div class="card">
+        <div class="card-header">
+            <h6 class="card-title">
+                <i class="bi bi-person-plus"></i>
+                Add New Client
+            </h6>
+            </div>
+            <div class="card-body">
+            <form method="POST" action="{{ url_for('add_client') }}">
+                <div class="mb-3">
+                        <label for="client_name" class="form-label">Client Name</label>
+                        <input type="text" class="form-control" id="client_name" name="client_name" 
+                           placeholder="Enter client name" required
+                           pattern="[a-zA-Z0-9_-]+"
+                           title="Only letters, numbers, underscores and hyphens">
+                    </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success flex-fill">
+                        <i class="bi bi-plus-circle me-1"></i>Add Client
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" onclick="enableMonitoring()" title="Enable Monitoring">
+                        <i class="bi bi-gear"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+    </div>
+</div>
+
+<!-- Active Connections Section -->
+{% if active_connections %}
+<div class="card table-card" id="connections">
+    <div class="card-header">
+        <h6 class="card-title">
+            <i class="bi bi-activity"></i>
+            Active Connections ({{ active_connections|length }})
+        </h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Real IP</th>
+                        <th>Virtual IP</th>
+                        <th>Data Transfer</th>
+                        <th>Connected Since</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for conn in active_connections %}
+                    <tr class="animate-in">
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="status-badge status-online me-2">
+                                    <i class="bi bi-circle-fill"></i>
+                                </div>
+                                <strong>{{ conn.name }}</strong>
+                            </div>
+                        </td>
+                        <td><code>{{ conn.real_address }}</code></td>
+                        <td><code>{{ conn.virtual_address }}</code></td>
+                        <td>
+                            <div>
+                                <span class="text-success">
+                                    <i class="bi bi-arrow-up"></i> {{ (conn.bytes_sent | int / 1024 / 1024) | round(1) if conn.bytes_sent != 'N/A' and conn.bytes_sent != '0' else '0.0' }} MB
+                                </span>
+                                <br>
+                                <span class="text-info">
+                                    <i class="bi bi-arrow-down"></i> {{ (conn.bytes_received | int / 1024 / 1024) | round(1) if conn.bytes_received != 'N/A' and conn.bytes_received != '0' else '0.0' }} MB
+                                </span>
+                            </div>
+                        </td>
+                        <td>
+                            <small class="text-muted">{{ conn.connected_since }}</small>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Client Management Section -->
+{% set active_clients = clients|selectattr('status', 'equalto', 'active')|list %}
+{% set revoked_clients = clients|selectattr('status', 'equalto', 'revoked')|list %}
+
+<div class="card table-card" id="clients">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="card-title mb-0">
+            <i class="bi bi-people"></i>
+            Active Clients ({{ active_clients|length }})
+        </h6>
+        <div class="d-flex gap-2">
+            {% if revoked_clients %}
+            <button class="btn btn-outline-secondary btn-sm" onclick="toggleRevokedClients()">
+                <i class="bi bi-eye" id="revokedToggleIcon"></i>
+                <span id="revokedToggleText">Show Revoked ({{ revoked_clients|length }})</span>
+            </button>
+            {% endif %}
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                <label class="form-check-label" for="autoRefresh">Auto Refresh</label>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if active_clients %}
+                    <div class="table-responsive">
+                <table class="table" id="clientsTable">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Connection Status</th>
+                            <th>Data Transfer</th>
+                            <th>Last Activity</th>
+                            <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                        {% for client in active_clients %}
+                        <tr data-client="{{ client.name }}" class="animate-in">
+                                    <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="client-avatar">
+                                        <i class="bi bi-person-circle"></i>
+                                    </div>
+                                    <div class="ms-2">
+                                        <strong>{{ client.name }}</strong>
+                                        <div class="client-meta">
+                                            {% if client.has_config %}
+                                                <span class="badge badge-info">
+                                                    <i class="bi bi-file-check"></i> Config Ready
+                                            </span>
+                                        {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                    </td>
+                            <td class="connection-status">
+                                        {% if client.is_online %}
+                                    <div class="status-badge status-online">
+                                        <i class="bi bi-wifi"></i>Online
+                                    </div>
+                                            {% if client.current_connection %}
+                                        <div class="mt-1">
+                                            <small class="text-muted">{{ client.current_connection.real_address }}</small>
+                                        </div>
+                                            {% endif %}
+                                        {% else %}
+                                    <div class="status-badge status-offline">
+                                        <i class="bi bi-wifi-off"></i>Offline
+                                    </div>
+                                        {% endif %}
+                                    </td>
+                            <td class="data-transfer-cell">
+                                {% if client.is_online and client.current_connection %}
+                                    <div class="transfer-stats">
+                                        <div class="transfer-item">
+                                            <span class="transfer-label">Sent:</span>
+                                            <span class="transfer-value text-success">{{ (client.current_connection.bytes_sent | int / 1024 / 1024) | round(1) if client.current_connection.bytes_sent != 'N/A' else '0.0' }} MB</span>
+                                        </div>
+                                        <div class="transfer-item">
+                                            <span class="transfer-label">Received:</span>
+                                            <span class="transfer-value text-info">{{ (client.current_connection.bytes_received | int / 1024 / 1024) | round(1) if client.current_connection.bytes_received != 'N/A' else '0.0' }} MB</span>
+                                        </div>
+                                    </div>
+                                        {% else %}
+                                    <span class="text-muted">—</span>
+                                        {% endif %}
+                                    </td>
+                            <td class="last-activity">
+                                {% if client.is_online %}
+                                    <span class="activity-online">
+                                        <i class="bi bi-circle-fill text-success"></i>
+                                        Online now
+                                            </span>
+                                {% elif client.last_activity != 'Never' %}
+                                    <small class="text-muted">{{ client.last_activity }}</small>
+                                        {% else %}
+                                    <small class="text-muted">Never connected</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                <div class="action-buttons">
+                                            {% if client.has_config %}
+                                                <a href="{{ url_for('download_config', client_name=client.name) }}" 
+                                           class="btn btn-outline-primary btn-sm" title="Download Configuration">
+                                                    <i class="bi bi-download"></i>
+                                                </a>
+                                            {% endif %}
+                                            
+                                    <button type="button" class="btn btn-outline-danger btn-sm" 
+                                                        title="Revoke Client" 
+                                                        onclick="revokeClient('{{ client.name }}')">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+            
+            <!-- Revoked Clients Table (Hidden by default) -->
+            {% if revoked_clients %}
+            <div id="revokedClientsSection" style="display: none;">
+                <div class="revoked-header">
+                    <h6 class="text-muted">
+                        <i class="bi bi-archive"></i>
+                        Revoked Clients ({{ revoked_clients|length }})
+                    </h6>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Client Name</th>
+                                <th>Revoked Date</th>
+                                <th>Config</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for client in revoked_clients %}
+                            <tr class="revoked-row">
+                                <td>
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-person-circle text-muted me-2"></i>
+                                        <span class="text-muted">{{ client.name }}</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <small class="text-muted">{{ client.revoke_date or 'Unknown' }}</small>
+                                </td>
+                                <td>
+                                    {% if client.has_config %}
+                                        <span class="badge badge-warning">
+                                            <i class="bi bi-file-x"></i> Inactive
+                                        </span>
+                {% else %}
+                                        <span class="badge badge-secondary">
+                                            <i class="bi bi-file-x"></i> Removed
+                                        </span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h5>No Active Clients</h5>
+                <p class="text-muted">Create your first VPN client using the form above</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+<!-- Status Indicator -->
+<div class="status-indicator">
+    <div id="statusIndicator" class="badge bg-secondary">
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        <span id="lastUpdate">Updating...</span>
+    </div>
+</div>
+
+<!-- Revoke Confirmation Modal -->
+<div class="modal fade" id="revokeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle text-warning me-2"></i>Confirm Revocation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Warning!</strong> This action cannot be undone.
+                </div>
+                <p>Are you sure you want to revoke access for client <strong id="clientNameToRevoke"></strong>?</p>
+                <p class="text-muted">The client will immediately lose VPN access and will not be able to reconnect.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="POST" action="{{ url_for('revoke_client') }}" style="display: inline;">
+                    <input type="hidden" name="client_name" id="clientNameInput">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash me-1"></i>Revoke Client
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lastUpdateTime = Date.now();
+let updateInterval;
+let autoRefreshEnabled = true;
+
+function revokeClient(clientName) {
+    document.getElementById('clientNameToRevoke').textContent = clientName;
+    document.getElementById('clientNameInput').value = clientName;
+    new bootstrap.Modal(document.getElementById('revokeModal')).show();
+}
+
+function enableMonitoring() {
+    if (confirm('This will enable enhanced monitoring and restart the OpenVPN service. Continue?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/enable_monitoring';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+function toggleRevokedClients() {
+    const section = document.getElementById('revokedClientsSection');
+    const icon = document.getElementById('revokedToggleIcon');
+    const text = document.getElementById('revokedToggleText');
+    
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        icon.className = 'bi bi-eye-slash';
+        text.textContent = 'Hide Revoked';
+        section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } else {
+        section.style.display = 'none';
+        icon.className = 'bi bi-eye';
+        text.textContent = text.textContent.replace('Hide', 'Show');
+    }
+}
+
+function updateStatusIndicator(status = 'updating') {
+    const indicator = document.getElementById('statusIndicator');
+    const updateText = document.getElementById('lastUpdate');
+    
+    if (status === 'updating') {
+        indicator.className = 'badge bg-warning';
+        updateText.innerHTML = '<i class="bi bi-arrow-clockwise spin me-1"></i>Updating...';
+    } else if (status === 'success') {
+        indicator.className = 'badge bg-success';
+        updateText.innerHTML = `<i class="bi bi-check-circle me-1"></i>${new Date().toLocaleTimeString()}`;
+    } else if (status === 'error') {
+        indicator.className = 'badge bg-danger';
+        updateText.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Update failed';
+    }
+}
+
+function updateActivityData() {
+    if (!autoRefreshEnabled) return;
+    
+    updateStatusIndicator('updating');
+    
+    // Update server activity data
+    fetch('/api/activity')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Update server stats with animation
+            updateStatWithAnimation('.active-connections-count', data.server_stats.active_connections);
+            updateStatWithAnimation('.bytes-sent', (data.server_stats.total_bytes_sent / 1024 / 1024).toFixed(1));
+            updateStatWithAnimation('.bytes-received', (data.server_stats.total_bytes_received / 1024 / 1024).toFixed(1));
+            
+            // Update client table
+            updateClientTable(data.active_connections);
+            
+            updateStatusIndicator('success');
+            lastUpdateTime = Date.now();
+        })
+        .catch(error => {
+            console.error('Error updating activity data:', error);
+            updateStatusIndicator('error');
+        });
+    
+    // Update system metrics (CPU, Memory, Network Speed)
+    updateSystemMetrics();
+    
+    // Update cluster info
+    updateClusterInfo();
+}
+
+function updateSystemMetrics() {
+    fetch('/api/system_metrics')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Update CPU usage
+            if (data.cpu_percent !== undefined) {
+                updateStatWithAnimation('.cpu-usage', data.cpu_percent.toFixed(1));
+            }
+            
+            // Update Memory usage
+            if (data.memory_percent !== undefined) {
+                updateStatWithAnimation('.memory-usage', data.memory_percent.toFixed(1));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating system metrics:', error);
+        });
+    
+    // Update network bandwidth
+    fetch('/api/network_bandwidth')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Update upload speed
+            if (data.upload_mbps !== undefined) {
+                updateStatWithAnimation('.upload-speed', data.upload_mbps.toFixed(3));
+            }
+            
+            // Update download speed  
+            if (data.download_mbps !== undefined) {
+                updateStatWithAnimation('.download-speed', data.download_mbps.toFixed(2));
+            }
+        })
+        .catch(error => {
+            console.error('Error updating network bandwidth:', error);
+        });
+}
+
+function updateClusterInfo() {
+    fetch('/api/cluster/info')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            console.log('Cluster info:', data); // Debug log
+            
+            // Update cluster servers count with animation
+            updateStatWithAnimation('.cluster-servers-count', data.total_servers || 0);
+            
+            // Update cluster status text
+            const statusElement = document.querySelector('.cluster-servers-status');
+            if (statusElement) {
+                statusElement.textContent = data.status_text || 'No data';
+                
+                // Update color based on status
+                statusElement.className = 'stat-subtitle cluster-servers-status';
+                if (data.total_servers === 0) {
+                    statusElement.style.color = '#64748b'; // default gray
+                } else if (data.online_servers === data.total_servers) {
+                    statusElement.style.color = '#059669'; // success green
+                } else if (data.online_servers === 0) {
+                    statusElement.style.color = '#dc2626'; // danger red
+                } else {
+                    statusElement.style.color = '#d97706'; // warning orange
+                }
+            } else {
+                console.error('Cluster status element not found');
+            }
+        })
+        .catch(error => {
+            console.error('Error updating cluster info:', error);
+            
+            // Show error state
+            const statusElement = document.querySelector('.cluster-servers-status');
+            if (statusElement) {
+                statusElement.textContent = 'Error loading';
+                statusElement.style.color = '#dc2626';
+            }
+            
+            // Set count to 0 on error
+            updateStatWithAnimation('.cluster-servers-count', 0);
+        });
+}
+
+function updateStatWithAnimation(selector, newValue) {
+    const element = document.querySelector(selector);
+    if (element && element.textContent !== newValue.toString()) {
+        element.style.transform = 'scale(1.1)';
+        element.style.transition = 'transform 0.2s ease';
+        
+        setTimeout(() => {
+            element.textContent = newValue;
+            element.style.transform = 'scale(1)';
+        }, 100);
+    }
+}
+
+function updateClientTable(activeConnections) {
+    const clientsTable = document.getElementById('clientsTable');
+    if (!clientsTable) return;
+    
+    const rows = clientsTable.querySelectorAll('tbody tr');
+    
+    rows.forEach(row => {
+        const clientName = row.getAttribute('data-client');
+        const connectionStatus = row.querySelector('.connection-status');
+        const dataTransferCell = row.querySelector('.data-transfer-cell');
+        const lastActivityCell = row.querySelector('.last-activity');
+        
+        // Find active connection for this client
+        const activeConn = activeConnections.find(conn => conn.name === clientName);
+        
+        if (activeConn) {
+            // Client is online
+            connectionStatus.innerHTML = `
+                <div class="status-badge status-online">
+                    <i class="bi bi-wifi"></i>Online
+                </div>
+                <div class="mt-1">
+                    <small class="text-muted">${activeConn.real_address}</small>
+                </div>
+            `;
+            
+            const sentMB = activeConn.bytes_sent !== 'N/A' && activeConn.bytes_sent !== '0' ? 
+                (parseInt(activeConn.bytes_sent) / 1024 / 1024).toFixed(1) : '0.0';
+            const receivedMB = activeConn.bytes_received !== 'N/A' && activeConn.bytes_received !== '0' ? 
+                (parseInt(activeConn.bytes_received) / 1024 / 1024).toFixed(1) : '0.0';
+            
+            dataTransferCell.innerHTML = `
+                <div class="transfer-stats">
+                    <div class="transfer-item">
+                        <span class="transfer-label">Sent:</span>
+                        <span class="transfer-value text-success">${sentMB} MB</span>
+                    </div>
+                    <div class="transfer-item">
+                        <span class="transfer-label">Received:</span>
+                        <span class="transfer-value text-info">${receivedMB} MB</span>
+                    </div>
+                </div>
+            `;
+            
+            lastActivityCell.innerHTML = `
+                <span class="activity-online">
+                    <i class="bi bi-circle-fill text-success"></i>
+                    Online now
+                </span>
+            `;
+        } else {
+            // Client is offline
+            connectionStatus.innerHTML = `
+                <div class="status-badge status-offline">
+                    <i class="bi bi-wifi-off"></i>Offline
+                </div>
+            `;
+            
+            dataTransferCell.innerHTML = `<span class="text-muted">—</span>`;
+            
+            // Keep the original last activity if it exists
+            if (!lastActivityCell.querySelector('span')?.textContent?.includes('Never connected')) {
+                lastActivityCell.innerHTML = `<small class="text-muted">Recently disconnected</small>`;
+            }
+        }
+    });
+}
+
+// Auto-refresh toggle
+document.getElementById('autoRefresh')?.addEventListener('change', function() {
+    autoRefreshEnabled = this.checked;
+    if (autoRefreshEnabled) {
+        updateActivityData();
+    }
+});
+
+// Smooth scrolling for sidebar links
+document.querySelectorAll('.nav-link[href^="#"]').forEach(link => {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        const targetId = this.getAttribute('href').substring(1);
+        const targetElement = document.getElementById(targetId);
+        if (targetElement) {
+            targetElement.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    });
+});
+
+// Add CSS for animations and improved styling
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .animate-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .client-avatar {
+        font-size: 1.5rem;
+        color: #3b82f6;
+    }
+    
+    .client-meta {
+        margin-top: 0.25rem;
+    }
+    
+    .transfer-stats {
+        font-size: 0.85rem;
+    }
+    
+    .transfer-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 0.125rem;
+    }
+    
+    .transfer-label {
+        color: #64748b;
+        font-weight: 500;
+    }
+    
+    .transfer-value {
+        font-weight: 600;
+    }
+    
+    .activity-online {
+        color: #10b981;
+        font-weight: 500;
+        font-size: 0.85rem;
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: 0.25rem;
+    }
+    
+    .revoked-header {
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #e2e8f0;
+        background: #f8fafc;
+    }
+    
+    .revoked-row {
+        opacity: 0.7;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+    }
+    
+    .badge-info {
+        background: #cffafe;
+        color: #155e75;
+    }
+    
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .badge-secondary {
+        background: #f1f5f9;
+        color: #475569;
+    }
+`;
+document.head.appendChild(style);
+
+// Start auto-refresh
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial update
+    updateActivityData();
+    
+    // Set up regular updates every 15 seconds
+    updateInterval = setInterval(updateActivityData, 15000);
+    
+    // Update immediately when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && Date.now() - lastUpdateTime > 10000) {
+            updateActivityData();
+        }
+    });
+});
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+</script>
+{% endblock %} 

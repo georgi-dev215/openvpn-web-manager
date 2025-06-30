@@ -1,0 +1,2120 @@
+{% extends "base.html" %}
+
+{% block page_title %}Settings{% endblock %}
+
+{% block content %}
+<!-- Server Configuration -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-server"></i>
+                    Server Configuration
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="setting-group">
+                    <label class="setting-label">Server Status</label>
+                    <div class="setting-value">
+                        {% if server_status %}
+                            <span class="status-badge status-online">
+                                <i class="bi bi-check-circle-fill"></i> Running
+                            </span>
+                        {% else %}
+                            <span class="status-badge status-offline">
+                                <i class="bi bi-x-circle-fill"></i> Stopped
+                            </span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Listen Port</label>
+                    <div class="setting-value">
+                        <code>{{ server_info.port or 'Not configured' }}</code>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Protocol</label>
+                    <div class="setting-value">
+                        <code>{{ server_info.protocol or 'Not configured' }}</code>
+                    </div>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Server IP</label>
+                    <div class="setting-value">
+                        <code>{{ server_info.local_ip or 'Not configured' }}</code>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-outline-primary" onclick="restartOpenVPN()">
+                        <i class="bi bi-arrow-clockwise"></i> Restart OpenVPN
+                    </button>
+                    <button class="btn btn-outline-danger ms-2" onclick="forceDisconnectAll()">
+                        <i class="bi bi-wifi-off"></i> Disconnect All
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-graph-up"></i>
+                    Monitoring Settings
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="setting-group">
+                    <label class="setting-label">Status Logging</label>
+                    <div class="setting-value">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="statusLogging" checked>
+                            <label class="form-check-label" for="statusLogging">
+                                Enable status file monitoring
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted">Creates detailed connection logs for monitoring</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Auto Refresh</label>
+                    <div class="setting-value">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                            <label class="form-check-label" for="autoRefresh">
+                                Enable automatic data refresh
+                            </label>
+                        </div>
+                    </div>
+                    <small class="text-muted">Updates data every 15 seconds automatically</small>
+                </div>
+                
+                <div class="setting-group">
+                    <label class="setting-label">Refresh Interval</label>
+                    <div class="setting-value">
+                        <select class="form-select" id="refreshInterval">
+                            <option value="5000">5 seconds</option>
+                            <option value="10000">10 seconds</option>
+                            <option value="15000" selected>15 seconds</option>
+                            <option value="30000">30 seconds</option>
+                            <option value="60000">1 minute</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-outline-success" onclick="enableMonitoring()">
+                        <i class="bi bi-gear"></i> Enable Enhanced Monitoring
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- File Paths and Logs -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-folder"></i>
+                    File Paths & Logs
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Configuration Files</h6>
+                        <div class="file-list">
+                            {% for file_key, file_info in file_status.config_files.items() %}
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    {% if 'ca.crt' in file_info.name %}
+                                        <i class="bi bi-file-earmark-lock"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">{{ file_info.name }}</div>
+                                    <div class="file-path">{{ file_info.path }}</div>
+                                    {% if file_info.exists and file_info.size > 0 %}
+                                        <div class="file-size">{{ (file_info.size / 1024) | round(1) }} KB</div>
+                                    {% endif %}
+                                </div>
+                                <div class="file-status">
+                                    {% if file_info.exists %}
+                                        <span class="badge badge-success">
+                                            <i class="bi bi-check-circle"></i> Exists
+                                        </span>
+                                        {% if not file_info.readable %}
+                                            <span class="badge badge-warning">
+                                                <i class="bi bi-exclamation-triangle"></i> Read Error
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge badge-danger">
+                                            <i class="bi bi-x-circle"></i> Missing
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h6>Log Files</h6>
+                        <div class="file-list">
+                            {% for file_key, file_info in file_status.log_files.items() %}
+                            <div class="file-item">
+                                <div class="file-icon">
+                                    {% if 'status' in file_info.name %}
+                                        <i class="bi bi-file-earmark-medical"></i>
+                                    {% else %}
+                                        <i class="bi bi-file-earmark-text"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="file-info">
+                                    <div class="file-name">{{ file_info.name }}</div>
+                                    <div class="file-path">{{ file_info.path }}</div>
+                                    {% if file_info.exists and file_info.size > 0 %}
+                                        <div class="file-size">{{ (file_info.size / 1024) | round(1) }} KB</div>
+                                    {% endif %}
+                                </div>
+                                <div class="file-status">
+                                    {% if file_info.exists %}
+                                        <span class="badge badge-success">
+                                            <i class="bi bi-check-circle"></i> Available
+                                        </span>
+                                        {% if file_info.readable %}
+                                            <a href="{{ url_for('view_logs', log_type=file_key.replace('_log', '')) }}" 
+                                               class="btn btn-outline-primary btn-sm mt-1">
+                                                <i class="bi bi-eye"></i> View
+                                            </a>
+                                        {% else %}
+                                            <span class="badge badge-warning">
+                                                <i class="bi bi-exclamation-triangle"></i> No Read Access
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if file_info.name == 'syslog' %}
+                                            <span class="badge badge-info">
+                                                <i class="bi bi-info-circle"></i> System
+                                            </span>
+                                        {% else %}
+                                            <span class="badge badge-warning">
+                                                <i class="bi bi-x-circle"></i> Not Found
+                                            </span>
+                                        {% endif %}
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+
+<!-- System Diagnosis -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-shield-check"></i>
+                    System Diagnosis
+                </h6>
+                <button class="btn btn-outline-primary btn-sm" onclick="runDiagnosis()">
+                    <i class="bi bi-arrow-clockwise"></i> Run Diagnosis
+                </button>
+            </div>
+            <div class="card-body">
+                {% if diagnosis %}
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="diagnosis-status">
+                            <h6>EasyRSA Status</h6>
+                            {% if diagnosis.easyrsa_status == 'working' %}
+                                <span class="badge badge-success">
+                                    <i class="bi bi-check-circle"></i> Working
+                                </span>
+                            {% elif diagnosis.easyrsa_status == 'executable' %}
+                                <span class="badge badge-warning">
+                                    <i class="bi bi-exclamation-triangle"></i> Executable
+                                </span>
+                            {% else %}
+                                <span class="badge badge-danger">
+                                    <i class="bi bi-x-circle"></i> {{ diagnosis.easyrsa_status|title }}
+                                </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-9">
+                        {% if diagnosis.errors %}
+                        <div class="diagnosis-section">
+                            <h6 class="text-danger">
+                                <i class="bi bi-exclamation-triangle-fill"></i> Errors Found
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% for error in diagnosis.errors %}
+                                <li class="text-danger mb-1">
+                                    <i class="bi bi-dot"></i> {{ error }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if diagnosis.missing_files %}
+                        <div class="diagnosis-section">
+                            <h6 class="text-warning">
+                                <i class="bi bi-file-earmark-x"></i> Missing Files
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% for file in diagnosis.missing_files %}
+                                <li class="text-warning mb-1">
+                                    <i class="bi bi-dot"></i> {{ file }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if diagnosis.permissions %}
+                        <div class="diagnosis-section">
+                            <h6 class="text-info">
+                                <i class="bi bi-shield-exclamation"></i> Permission Issues
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% for perm in diagnosis.permissions %}
+                                <li class="text-info mb-1">
+                                    <i class="bi bi-dot"></i> {{ perm }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if diagnosis.recommendations %}
+                        <div class="diagnosis-section">
+                            <h6 class="text-primary">
+                                <i class="bi bi-lightbulb"></i> Recommendations
+                            </h6>
+                            <ul class="list-unstyled">
+                                {% for rec in diagnosis.recommendations %}
+                                <li class="text-primary mb-1">
+                                    <i class="bi bi-arrow-right"></i> {{ rec }}
+                                </li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                        
+                        {% if not diagnosis.errors and not diagnosis.missing_files and not diagnosis.permissions %}
+                        <div class="text-success">
+                            <i class="bi bi-check-circle-fill"></i>
+                            No critical issues detected. System appears to be healthy.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% else %}
+                <div class="text-center py-3">
+                    <i class="bi bi-gear text-muted" style="font-size: 2rem;"></i>
+                    <p class="text-muted mt-2">Click "Run Diagnosis" to check system configuration</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Configuration Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-gear-fill"></i>
+                    Advanced Configuration Management
+                </h6>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-success btn-sm" onclick="backupConfigs()">
+                        <i class="bi bi-cloud-arrow-up"></i> Backup
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="validateConfig()">
+                        <i class="bi bi-check-circle"></i> Validate
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- Configuration Tabs -->
+                <ul class="nav nav-tabs" id="configTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="server-config-tab" data-bs-toggle="tab" data-bs-target="#server-config" type="button" role="tab">
+                            <i class="bi bi-server"></i> Server Config
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="client-common-tab" data-bs-toggle="tab" data-bs-target="#client-common" type="button" role="tab">
+                            <i class="bi bi-file-text"></i> Client Common
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="port-config-tab" data-bs-toggle="tab" data-bs-target="#port-config" type="button" role="tab">
+                            <i class="bi bi-ethernet"></i> Port & Network
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="auth-config-tab" data-bs-toggle="tab" data-bs-target="#auth-config" type="button" role="tab">
+                            <i class="bi bi-shield-lock"></i> Authentication
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="user-groups-tab" data-bs-toggle="tab" data-bs-target="#user-groups" type="button" role="tab">
+                            <i class="bi bi-people"></i> User Groups
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="advanced-tab" data-bs-toggle="tab" data-bs-target="#advanced" type="button" role="tab">
+                            <i class="bi bi-sliders"></i> Advanced
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup-content" type="button">
+                            <i class="bi bi-archive"></i> Backup Management
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content mt-3" id="configTabContent">
+                    <!-- Server Configuration Tab -->
+                    <div class="tab-pane fade show active" id="server-config" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h6>Server Configuration Editor</h6>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Configuration Templates</label>
+                                    <select class="form-select" id="configTemplate" onchange="loadTemplate()">
+                                        <option value="">Select a template...</option>
+                                        <option value="basic_server">Basic Server</option>
+                                        <option value="high_security">High Security</option>
+                                        <option value="performance">Performance Optimized</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Raw Configuration</label>
+                                    <textarea class="form-control" id="serverConfigEditor" rows="15" style="font-family: monospace;">
+# Loading configuration...
+                                    </textarea>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6>Quick Settings</h6>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Listen Port</label>
+                                    <input type="number" class="form-control" id="serverPort" min="1" max="65535">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Protocol</label>
+                                    <select class="form-select" id="serverProtocol">
+                                        <option value="udp">UDP</option>
+                                        <option value="tcp">TCP</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Cipher</label>
+                                    <select class="form-select" id="serverCipher">
+                                        <option value="AES-256-GCM">AES-256-GCM</option>
+                                        <option value="AES-128-GCM">AES-128-GCM</option>
+                                        <option value="AES-256-CBC">AES-256-CBC</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Server Network</label>
+                                    <input type="text" class="form-control" id="serverNetwork" placeholder="10.8.0.0 255.255.255.0">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="saveServerConfig()">
+                                <i class="bi bi-save"></i> Save Configuration
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="loadServerConfig()">
+                                <i class="bi bi-arrow-clockwise"></i> Reload
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Client Common Tab -->
+                    <div class="tab-pane fade" id="client-common" role="tabpanel">
+                        <h6>Client Common Configuration</h6>
+                        <p class="text-muted">This file contains the common client configuration that will be used for all generated .ovpn files.</p>
+                        <div class="form-group mb-3">
+                            <textarea class="form-control" id="clientCommonEditor" rows="20" style="font-family: monospace;">
+# Loading client common configuration...
+                            </textarea>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="saveClientCommon()">
+                                <i class="bi bi-save"></i> Save Client Common
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="loadClientCommon()">
+                                <i class="bi bi-arrow-clockwise"></i> Reload
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Port Configuration Tab -->
+                    <div class="tab-pane fade" id="port-config" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h6>Port Configuration</h6>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Internal Port</label>
+                                    <input type="number" class="form-control" id="internalPort" min="1" max="65535">
+                                    <small class="text-muted">Port OpenVPN server binds to internally</small>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">External Port</label>
+                                    <input type="number" class="form-control" id="externalPort" min="1" max="65535">
+                                    <small class="text-muted">Port exposed externally (for port forwarding)</small>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Protocol</label>
+                                    <select class="form-select" id="portProtocol">
+                                        <option value="udp">UDP (Recommended)</option>
+                                        <option value="tcp">TCP</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-primary" onclick="savePortConfig()">
+                                    <i class="bi bi-save"></i> Update Port Configuration
+                                </button>
+                            </div>
+                            <div class="col-lg-6">
+                                <h6>Network Configuration</h6>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">VPN Network</label>
+                                    <input type="text" class="form-control" id="vpnNetwork" placeholder="10.8.0.0">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">VPN Netmask</label>
+                                    <input type="text" class="form-control" id="vpnNetmask" placeholder="255.255.255.0">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Primary DNS</label>
+                                    <input type="text" class="form-control" id="primaryDns" placeholder="8.8.8.8">
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Secondary DNS</label>
+                                    <input type="text" class="form-control" id="secondaryDns" placeholder="8.8.4.4">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Authentication Tab -->
+                    <div class="tab-pane fade" id="auth-config" role="tabpanel">
+                        <h6>Authentication Configuration</h6>
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h6>Authentication Methods</h6>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="certAuth" checked disabled>
+                                    <label class="form-check-label" for="certAuth">
+                                        <strong>Certificate Authentication</strong>
+                                    </label>
+                                    <small class="text-muted d-block">Always enabled for security</small>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="userPassAuth">
+                                    <label class="form-check-label" for="userPassAuth">
+                                        <strong>Username/Password Authentication</strong>
+                                    </label>
+                                    <small class="text-muted d-block">Require username and password in addition to certificates</small>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="duplicateCn">
+                                    <label class="form-check-label" for="duplicateCn">
+                                        <strong>Allow Duplicate Certificates</strong>
+                                    </label>
+                                    <small class="text-muted d-block">Allow multiple connections with same certificate</small>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="clientToClient">
+                                    <label class="form-check-label" for="clientToClient">
+                                        <strong>Client-to-Client Communication</strong>
+                                    </label>
+                                    <small class="text-muted d-block">Allow clients to communicate with each other</small>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <h6>User Management</h6>
+                                <div class="form-group mb-3" id="authScriptSection" style="display: none;">
+                                    <label class="form-label">Authentication Script</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="authScript" value="/etc/openvpn/server/auth-script.sh" readonly>
+                                        <button class="btn btn-outline-secondary" onclick="createAuthScript()">
+                                            <i class="bi bi-plus-circle"></i> Create
+                                        </button>
+                                    </div>
+                                    <small class="text-muted">Script to handle username/password authentication</small>
+                                </div>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    <strong>Username/Password Setup:</strong><br>
+                                    1. Enable username/password authentication<br>
+                                    2. Create authentication script<br>
+                                    3. Add users to the database file<br>
+                                    4. Restart OpenVPN service
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="saveAuthSettings()">
+                                <i class="bi bi-save"></i> Save Authentication Settings
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- User Groups Tab -->
+                    <div class="tab-pane fade" id="user-groups" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <h6>User Group Management</h6>
+                                <p class="text-muted">Organize users into groups for easier management and access control.</p>
+                                
+                                <div class="row mb-3">
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="newGroupName" placeholder="Group name">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <input type="text" class="form-control" id="newGroupUser" placeholder="Username">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <button class="btn btn-success" onclick="addUserToGroup()">
+                                            <i class="bi bi-plus-circle"></i> Add User to Group
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div id="userGroupsList">
+                                    <!-- User groups will be loaded here -->
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <h6>Group Templates</h6>
+                                <div class="list-group">
+                                    <a href="#" class="list-group-item list-group-item-action" onclick="createGroupTemplate('admins')">
+                                        <i class="bi bi-shield-fill-check text-danger"></i>
+                                        <strong>Administrators</strong>
+                                        <small class="text-muted d-block">Full access group</small>
+                                    </a>
+                                    <a href="#" class="list-group-item list-group-item-action" onclick="createGroupTemplate('users')">
+                                        <i class="bi bi-person-fill text-primary"></i>
+                                        <strong>Regular Users</strong>
+                                        <small class="text-muted d-block">Standard access group</small>
+                                    </a>
+                                    <a href="#" class="list-group-item list-group-item-action" onclick="createGroupTemplate('guests')">
+                                        <i class="bi bi-person text-secondary"></i>
+                                        <strong>Guests</strong>
+                                        <small class="text-muted d-block">Limited access group</small>
+                                    </a>
+                                </div>
+                                
+                                <div class="mt-3">
+                                    <button class="btn btn-primary w-100" onclick="saveUserGroups()">
+                                        <i class="bi bi-save"></i> Save Groups
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Settings Tab -->
+                    <div class="tab-pane fade" id="advanced" role="tabpanel">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <h6>Performance Settings</h6>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="enableCompression">
+                                    <label class="form-check-label" for="enableCompression">
+                                        <strong>Enable Compression</strong>
+                                    </label>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Compression Algorithm</label>
+                                    <select class="form-select" id="compressionAlgorithm">
+                                        <option value="lz4-v2">LZ4-V2 (Recommended)</option>
+                                        <option value="lz4">LZ4</option>
+                                        <option value="lzo">LZO</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Max Clients</label>
+                                    <input type="number" class="form-control" id="maxClients" min="1" max="1000">
+                                </div>
+                                <div class="row">
+                                    <div class="col-6">
+                                        <label class="form-label">Keepalive Ping</label>
+                                        <input type="number" class="form-control" id="keepalivePing" min="1" max="300">
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label">Keepalive Timeout</label>
+                                        <input type="number" class="form-control" id="keepaliveTimeout" min="10" max="3600">
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <h6>Security Settings</h6>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Minimum TLS Version</label>
+                                    <select class="form-select" id="tlsVersionMin">
+                                        <option value="1.2">TLS 1.2</option>
+                                        <option value="1.3">TLS 1.3</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Authentication Algorithm</label>
+                                    <select class="form-select" id="authAlgorithm">
+                                        <option value="SHA512">SHA512</option>
+                                        <option value="SHA256">SHA256</option>
+                                        <option value="SHA1">SHA1</option>
+                                    </select>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label class="form-label">Verbosity Level</label>
+                                    <select class="form-select" id="verbLevel">
+                                        <option value="1">1 - Minimal</option>
+                                        <option value="3">3 - Normal</option>
+                                        <option value="5">5 - Verbose</option>
+                                        <option value="9">9 - Debug</option>
+                                    </select>
+                                </div>
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" id="managementInterface" checked>
+                                    <label class="form-check-label" for="managementInterface">
+                                        <strong>Management Interface</strong>
+                                    </label>
+                                    <small class="text-muted d-block">Enable for monitoring and management</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button class="btn btn-primary" onclick="saveAdvancedSettings()">
+                                <i class="bi bi-save"></i> Save Advanced Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Information -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-info-circle"></i>
+                    System Information
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="info-card">
+                            <div class="info-header">
+                                <i class="bi bi-hdd"></i>
+                                <span>OpenVPN Manager</span>
+                            </div>
+                            <div class="info-details">
+                                <div class="info-line">
+                                    <span class="info-key">Version:</span>
+                                    <span class="info-value">2.0.0</span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Framework:</span>
+                                    <span class="info-value">Flask</span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Interface:</span>
+                                    <span class="info-value">Advanced Web UI</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="info-card">
+                            <div class="info-header">
+                                <i class="bi bi-shield-lock"></i>
+                                <span>OpenVPN Server</span>
+                            </div>
+                            <div class="info-details">
+                                <div class="info-line">
+                                    <span class="info-key">Status:</span>
+                                    <span class="info-value">
+                                        {% if server_status %}
+                                            <span class="text-success">Running</span>
+                                        {% else %}
+                                            <span class="text-danger">Stopped</span>
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Config:</span>
+                                    <span class="info-value">server.conf</span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Service:</span>
+                                    <span class="info-value">openvpn-server@server</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="info-card">
+                            <div class="info-header">
+                                <i class="bi bi-key"></i>
+                                <span>Certificate Authority</span>
+                            </div>
+                            <div class="info-details">
+                                <div class="info-line">
+                                    <span class="info-key">Tool:</span>
+                                    <span class="info-value">EasyRSA</span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Algorithm:</span>
+                                    <span class="info-value">RSA 2048</span>
+                                </div>
+                                <div class="info-line">
+                                    <span class="info-key">Encryption:</span>
+                                    <span class="info-value">AES-256-GCM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backup Management Tab -->
+<div class="tab-pane fade" id="backup-content">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-archive"></i> Backup Management
+                    </h6>
+                    <button class="btn btn-primary btn-sm" onclick="createBackup()">
+                        <i class="bi bi-plus-circle"></i> Create Backup
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>Full System Backup:</strong> Includes configuration files, client certificates, database, user groups, and cluster settings.
+                    </div>
+                    
+                    <!-- Backup List -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Backup Name</th>
+                                    <th>Created</th>
+                                    <th>Size</th>
+                                    <th>Description</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="backupsTableBody">
+                                <!-- Backups will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="noBackupsMessage" class="text-center text-muted py-4" style="display: none;">
+                        <i class="bi bi-archive"></i>
+                        <p>No backups created yet</p>
+                        <button class="btn btn-primary" onclick="createBackup()">
+                            <i class="bi bi-plus-circle"></i> Create First Backup
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Backup Status Modal -->
+<div class="modal fade" id="backupStatusModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-archive"></i> Creating Backup
+                </h5>
+            </div>
+            <div class="modal-body text-center">
+                <div class="spinner-border text-primary mb-3" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p>Creating comprehensive backup...</p>
+                <small class="text-muted">This may take a few minutes</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Confirmation Modal -->
+<div class="modal fade" id="restoreConfirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-warning">
+                    <i class="bi bi-exclamation-triangle"></i> Restore Backup
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> Restoring a backup will overwrite current configurations, database, and settings. 
+                    Current data will be backed up with ".pre_restore" extension.
+                </div>
+                <p>Are you sure you want to restore backup: <strong id="restoreBackupName"></strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-warning" id="confirmRestoreBtn">
+                    <i class="bi bi-arrow-clockwise"></i> Restore Backup
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Global variables for configuration management
+let currentServerConfig = {};
+let currentUserGroups = {};
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    loadServerConfig();
+    loadClientCommon();
+    loadPortConfig();
+    loadAuthSettings();
+    loadUserGroups();
+    loadAdvancedSettings();
+    loadConfigTemplates();
+});
+
+function enableMonitoring() {
+    if (confirm('This will enable enhanced monitoring and restart the OpenVPN service. Continue?')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/enable_monitoring';
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Configuration Management Functions
+async function loadServerConfig() {
+    try {
+        const response = await fetch('/api/server_config');
+        const data = await response.json();
+        
+        if (data.error) {
+            showNotification('Error loading server config: ' + data.error, 'error');
+            return;
+        }
+        
+        currentServerConfig = data.config;
+        document.getElementById('serverConfigEditor').value = data.raw_content || '';
+        
+        // Update quick settings
+        document.getElementById('serverPort').value = data.config.port || '1194';
+        document.getElementById('serverProtocol').value = data.config.proto || 'udp';
+        document.getElementById('serverCipher').value = data.config.cipher || 'AES-256-GCM';
+        document.getElementById('serverNetwork').value = data.config.server || '10.8.0.0 255.255.255.0';
+        
+    } catch (error) {
+        showNotification('Error loading server config: ' + error.message, 'error');
+    }
+}
+
+async function saveServerConfig() {
+    try {
+        showProgress('Saving server configuration...');
+        
+        // Get configuration from editor
+        const configText = document.getElementById('serverConfigEditor').value;
+        
+        // Parse basic settings
+        const configData = {
+            port: document.getElementById('serverPort').value,
+            proto: document.getElementById('serverProtocol').value,
+            cipher: document.getElementById('serverCipher').value,
+            server: document.getElementById('serverNetwork').value,
+            custom_configs: configText
+        };
+        
+        const response = await fetch('/api/server_config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(configData)
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Server configuration saved successfully!', 'success');
+            if (confirm('Configuration saved. Restart OpenVPN service to apply changes?')) {
+                restartOpenVPNService();
+            }
+        } else {
+            showNotification('Error saving config: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error saving server config: ' + error.message, 'error');
+    }
+}
+
+async function loadClientCommon() {
+    try {
+        const response = await fetch('/api/client_common');
+        const data = await response.json();
+        
+        if (data.error) {
+            document.getElementById('clientCommonEditor').value = '# Client common file not found or error loading';
+        } else {
+            document.getElementById('clientCommonEditor').value = data.content;
+        }
+    } catch (error) {
+        document.getElementById('clientCommonEditor').value = '# Error loading client common file';
+    }
+}
+
+async function saveClientCommon() {
+    try {
+        showProgress('Saving client common configuration...');
+        
+        const content = document.getElementById('clientCommonEditor').value;
+        
+        const response = await fetch('/api/client_common', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({content: content})
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Client common configuration saved successfully!', 'success');
+        } else {
+            showNotification('Error saving client common: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error saving client common: ' + error.message, 'error');
+    }
+}
+
+async function loadPortConfig() {
+    try {
+        const response = await fetch('/api/port_config');
+        const data = await response.json();
+        
+        if (!data.error) {
+            document.getElementById('internalPort').value = data.internal_port;
+            document.getElementById('externalPort').value = data.external_port;
+            document.getElementById('portProtocol').value = data.protocol;
+        }
+    } catch (error) {
+        console.error('Error loading port config:', error);
+    }
+}
+
+async function savePortConfig() {
+    try {
+        showProgress('Updating port configuration...');
+        
+        const configData = {
+            internal_port: document.getElementById('internalPort').value,
+            external_port: document.getElementById('externalPort').value,
+            protocol: document.getElementById('portProtocol').value
+        };
+        
+        const response = await fetch('/api/port_config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(configData)
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Port configuration updated successfully!', 'success');
+            if (confirm('Port configuration updated. Restart OpenVPN service to apply changes?')) {
+                restartOpenVPNService();
+            }
+        } else {
+            showNotification('Error updating port config: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error updating port config: ' + error.message, 'error');
+    }
+}
+
+async function loadAuthSettings() {
+    try {
+        const response = await fetch('/api/auth_settings');
+        const data = await response.json();
+        
+        if (!data.error) {
+            document.getElementById('userPassAuth').checked = data.username_password_auth;
+            document.getElementById('duplicateCn').checked = data.duplicate_cn;
+            document.getElementById('clientToClient').checked = data.client_to_client;
+            
+            // Show/hide auth script section
+            const authScriptSection = document.getElementById('authScriptSection');
+            authScriptSection.style.display = data.username_password_auth ? 'block' : 'none';
+        }
+    } catch (error) {
+        console.error('Error loading auth settings:', error);
+    }
+}
+
+async function saveAuthSettings() {
+    try {
+        showProgress('Saving authentication settings...');
+        
+        const settings = {
+            username_password_auth: document.getElementById('userPassAuth').checked,
+            duplicate_cn: document.getElementById('duplicateCn').checked,
+            client_to_client: document.getElementById('clientToClient').checked,
+            auth_script: document.getElementById('authScript').value
+        };
+        
+        const response = await fetch('/api/auth_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(settings)
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Authentication settings saved successfully!', 'success');
+            if (confirm('Authentication settings updated. Restart OpenVPN service to apply changes?')) {
+                restartOpenVPNService();
+            }
+        } else {
+            showNotification('Error saving auth settings: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error saving auth settings: ' + error.message, 'error');
+    }
+}
+
+async function createAuthScript() {
+    try {
+        showProgress('Creating authentication script...');
+        
+        const response = await fetch('/api/create_auth_script', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Authentication script created successfully!', 'success');
+        } else {
+            showNotification('Error creating auth script: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error creating auth script: ' + error.message, 'error');
+    }
+}
+
+async function loadUserGroups() {
+    try {
+        const response = await fetch('/api/user_groups');
+        const data = await response.json();
+        
+        if (!data.error) {
+            currentUserGroups = data;
+            displayUserGroups(data);
+        }
+    } catch (error) {
+        console.error('Error loading user groups:', error);
+    }
+}
+
+function displayUserGroups(groups) {
+    const container = document.getElementById('userGroupsList');
+    container.innerHTML = '';
+    
+    for (const [groupName, users] of Object.entries(groups)) {
+        const groupDiv = document.createElement('div');
+        groupDiv.className = 'card mb-3';
+        groupDiv.innerHTML = `
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="bi bi-folder"></i> ${groupName}</h6>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteGroup('${groupName}')">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2">
+                    ${users.map(user => `
+                        <span class="badge bg-primary">
+                            ${user}
+                            <button class="btn btn-sm ms-1" onclick="removeUserFromGroup('${groupName}', '${user}')" style="border: none; background: none; color: white; padding: 0;">
+                                <i class="bi bi-x"></i>
+                            </button>
+                        </span>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        container.appendChild(groupDiv);
+    }
+}
+
+function addUserToGroup() {
+    const groupName = document.getElementById('newGroupName').value.trim();
+    const userName = document.getElementById('newGroupUser').value.trim();
+    
+    if (!groupName || !userName) {
+        showNotification('Please enter both group name and username', 'warning');
+        return;
+    }
+    
+    if (!currentUserGroups[groupName]) {
+        currentUserGroups[groupName] = [];
+    }
+    
+    if (!currentUserGroups[groupName].includes(userName)) {
+        currentUserGroups[groupName].push(userName);
+        displayUserGroups(currentUserGroups);
+        
+        // Clear inputs
+        document.getElementById('newGroupName').value = '';
+        document.getElementById('newGroupUser').value = '';
+    } else {
+        showNotification('User already exists in this group', 'warning');
+    }
+}
+
+function removeUserFromGroup(groupName, userName) {
+    if (currentUserGroups[groupName] && Array.isArray(currentUserGroups[groupName])) {
+        currentUserGroups[groupName] = currentUserGroups[groupName].filter(user => user !== userName);
+        if (currentUserGroups[groupName].length === 0) {
+            delete currentUserGroups[groupName];
+        }
+        displayUserGroups(currentUserGroups);
+    }
+}
+
+function deleteGroup(groupName) {
+    if (confirm(`Delete group "${groupName}" and all its users?`)) {
+        delete currentUserGroups[groupName];
+        displayUserGroups(currentUserGroups);
+    }
+}
+
+function createGroupTemplate(template) {
+    const templates = {
+        'admins': ['admin', 'root'],
+        'users': ['user1', 'user2'],
+        'guests': ['guest1', 'temp1']
+    };
+    
+    if (templates[template]) {
+        currentUserGroups[template] = templates[template];
+        displayUserGroups(currentUserGroups);
+    }
+}
+
+async function saveUserGroups() {
+    try {
+        showProgress('Saving user groups...');
+        
+        const response = await fetch('/api/user_groups', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({groups: currentUserGroups})
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('User groups saved successfully!', 'success');
+        } else {
+            showNotification('Error saving user groups: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error saving user groups: ' + error.message, 'error');
+    }
+}
+
+async function loadAdvancedSettings() {
+    try {
+        const response = await fetch('/api/advanced_settings');
+        const data = await response.json();
+        
+        if (!data.error) {
+            document.getElementById('enableCompression').checked = data.compression;
+            document.getElementById('compressionAlgorithm').value = data.compression_algorithm;
+            document.getElementById('maxClients').value = data.max_clients;
+            document.getElementById('keepalivePing').value = data.keepalive_ping;
+            document.getElementById('keepaliveTimeout').value = data.keepalive_timeout;
+            document.getElementById('tlsVersionMin').value = data.tls_version_min;
+            document.getElementById('authAlgorithm').value = data.auth_algorithm;
+            document.getElementById('verbLevel').value = data.verb_level;
+            document.getElementById('managementInterface').checked = data.management_interface;
+        }
+    } catch (error) {
+        console.error('Error loading advanced settings:', error);
+    }
+}
+
+async function saveAdvancedSettings() {
+    try {
+        showProgress('Saving advanced settings...');
+        
+        const settings = {
+            compression: document.getElementById('enableCompression').checked,
+            compression_algorithm: document.getElementById('compressionAlgorithm').value,
+            max_clients: document.getElementById('maxClients').value,
+            keepalive_ping: document.getElementById('keepalivePing').value,
+            keepalive_timeout: document.getElementById('keepaliveTimeout').value,
+            tls_version_min: document.getElementById('tlsVersionMin').value,
+            auth_algorithm: document.getElementById('authAlgorithm').value,
+            verb_level: document.getElementById('verbLevel').value,
+            management_interface: document.getElementById('managementInterface').checked
+        };
+        
+        const response = await fetch('/api/advanced_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(settings)
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Advanced settings saved successfully!', 'success');
+            if (confirm('Advanced settings updated. Restart OpenVPN service to apply changes?')) {
+                restartOpenVPNService();
+            }
+        } else {
+            showNotification('Error saving advanced settings: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error saving advanced settings: ' + error.message, 'error');
+    }
+}
+
+async function loadConfigTemplates() {
+    try {
+        const response = await fetch('/api/config_templates');
+        const data = await response.json();
+        
+        if (!data.error) {
+            const select = document.getElementById('configTemplate');
+            select.innerHTML = '<option value="">Select a template...</option>';
+            
+            for (const [key, template] of Object.entries(data)) {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = template.name;
+                option.title = template.description;
+                select.appendChild(option);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading config templates:', error);
+    }
+}
+
+async function loadTemplate() {
+    const templateKey = document.getElementById('configTemplate').value;
+    if (!templateKey) return;
+    
+    try {
+        const response = await fetch('/api/config_templates');
+        const data = await response.json();
+        
+        if (data[templateKey]) {
+            const template = data[templateKey];
+            const config = template.config;
+            
+            // Update form fields
+            document.getElementById('serverPort').value = config.port || '';
+            document.getElementById('serverProtocol').value = config.proto || '';
+            document.getElementById('serverCipher').value = config.cipher || '';
+            document.getElementById('serverNetwork').value = config.server || '';
+            
+            showNotification(`Template "${template.name}" loaded successfully!`, 'success');
+        }
+    } catch (error) {
+        showNotification('Error loading template: ' + error.message, 'error');
+    }
+}
+
+async function backupConfigs() {
+    try {
+        showProgress('Creating configuration backup...');
+        
+        const response = await fetch('/api/backup_configs', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            const filesCount = result.backup_info && result.backup_info.files_backed_up ? result.backup_info.files_backed_up : 'multiple';
+            showNotification(`Configuration backup created: ${filesCount} files backed up`, 'success');
+        } else {
+            showNotification('Error creating backup: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error creating backup: ' + error.message, 'error');
+    }
+}
+
+async function validateConfig() {
+    try {
+        showProgress('Validating OpenVPN configuration...');
+        
+        const response = await fetch('/api/validate_config', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.valid) {
+            showNotification('Configuration is valid!', 'success');
+        } else {
+            showNotification('Configuration validation failed: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error validating config: ' + error.message, 'error');
+    }
+}
+
+// Enable/disable auth script section based on checkbox
+document.addEventListener('DOMContentLoaded', function() {
+    const userPassAuth = document.getElementById('userPassAuth');
+    if (userPassAuth) {
+        userPassAuth.addEventListener('change', function() {
+            const authScriptSection = document.getElementById('authScriptSection');
+            authScriptSection.style.display = this.checked ? 'block' : 'none';
+        });
+    }
+});
+
+// Missing utility functions
+async function restartOpenVPNService() {
+    try {
+        showProgress('Restarting OpenVPN service...');
+        
+        const response = await fetch('/api/restart_openvpn', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('OpenVPN service restarted successfully!', 'success');
+        } else {
+            showNotification('Error restarting service: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Error restarting service: ' + error.message, 'error');
+    }
+}
+
+function forceDisconnectAll() {
+    if (confirm('This will disconnect ALL connected clients. Continue?')) {
+        showProgress('Disconnecting all clients...');
+        
+        fetch('/api/force_disconnect_all', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideProgress();
+            if (data.success) {
+                showNotification('All clients disconnected successfully!', 'success');
+            } else {
+                showNotification('Error: ' + data.error, 'error');
+            }
+        })
+        .catch(error => {
+            hideProgress();
+            showNotification('Connection error: ' + error.message, 'error');
+        });
+    }
+}
+
+async function runDiagnosis() {
+    const button = document.querySelector('button[onclick="runDiagnosis()"]');
+    const originalText = button.innerHTML;
+    
+    // Show loading state
+    button.innerHTML = '<i class="bi bi-hourglass-split"></i> Running...';
+    button.disabled = true;
+    
+    try {
+        const response = await fetch('/api/diagnose');
+        if (response.ok) {
+            // Reload the page to show updated diagnosis
+            window.location.reload();
+        } else {
+            alert('Failed to run diagnosis. Please try again.');
+        }
+    } catch (error) {
+        console.error('Diagnosis failed:', error);
+        alert('Error running diagnosis: ' + error.message);
+    } finally {
+        // Restore button state
+        button.innerHTML = originalText;
+        button.disabled = false;
+    }
+}
+
+// Progress and notification functions
+function showProgress(message) {
+    const overlay = document.createElement('div');
+    overlay.id = 'progressOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    `;
+    
+    const progressBox = document.createElement('div');
+    progressBox.style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    `;
+    
+    progressBox.innerHTML = `
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mb-0 text-muted">${message}</p>
+    `;
+    
+    overlay.appendChild(progressBox);
+    document.body.appendChild(overlay);
+}
+
+function hideProgress() {
+    const overlay = document.getElementById('progressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type}`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1060;
+        min-width: 300px;
+        max-width: 400px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle';
+    
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${icon} me-2"></i>
+            <span class="flex-grow-1">${message}</span>
+            <button type="button" class="btn-close btn-close-white ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+// Save settings to localStorage
+function saveSettings() {
+    const settings = {
+        statusLogging: document.getElementById('statusLogging').checked,
+        autoRefresh: document.getElementById('autoRefresh').checked,
+        refreshInterval: document.getElementById('refreshInterval').value
+    };
+    localStorage.setItem('openvpn_settings', JSON.stringify(settings));
+}
+
+// Load settings from localStorage
+function loadSettings() {
+    const saved = localStorage.getItem('openvpn_settings');
+    if (saved) {
+        const settings = JSON.parse(saved);
+        document.getElementById('statusLogging').checked = settings.statusLogging ?? true;
+        document.getElementById('autoRefresh').checked = settings.autoRefresh ?? true;
+        document.getElementById('refreshInterval').value = settings.refreshInterval ?? '15000';
+    }
+}
+
+// Add event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    loadSettings();
+    
+    // Save settings when changed
+    document.getElementById('statusLogging').addEventListener('change', saveSettings);
+    document.getElementById('autoRefresh').addEventListener('change', saveSettings);
+    document.getElementById('refreshInterval').addEventListener('change', saveSettings);
+});
+
+// Add CSS for animations and settings page
+const settingsStyle = document.createElement('style');
+settingsStyle.textContent = `
+    @keyframes slideInRight {
+        from {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        to {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+    
+
+    
+    .setting-group {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .setting-group:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+    }
+    
+    .setting-label {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    .setting-value {
+        margin-bottom: 0.25rem;
+    }
+    
+    .file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .file-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+    
+    .file-icon {
+        font-size: 1.5rem;
+        color: #3b82f6;
+        margin-right: 1rem;
+    }
+    
+    .file-info {
+        flex: 1;
+    }
+    
+    .file-name {
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    
+    .file-path {
+        font-size: 0.8rem;
+        color: #64748b;
+        font-family: monospace;
+    }
+    
+    .file-status {
+        margin-left: 1rem;
+    }
+    
+    .info-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 1.5rem;
+        height: 100%;
+    }
+    
+    .info-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .info-header i {
+        font-size: 1.25rem;
+        color: #3b82f6;
+    }
+    
+    .info-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .info-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .info-key {
+        font-size: 0.9rem;
+        color: #64748b;
+    }
+    
+    .info-value {
+        font-size: 0.9rem;
+        font-weight: 500;
+        color: #1e293b;
+    }
+    
+    .badge-success {
+        background: #dcfce7;
+        color: #166534;
+    }
+    
+    .badge-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+    
+    .badge-info {
+        background: #cffafe;
+        color: #155e75;
+    }
+    
+    .diagnosis-section {
+        margin-bottom: 1.5rem;
+    }
+    
+    .diagnosis-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .diagnosis-section h6 {
+        margin-bottom: 0.75rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+    }
+    
+    .diagnosis-section ul {
+        margin: 0;
+    }
+    
+    .diagnosis-section li {
+        font-size: 0.9rem;
+        padding: 0.25rem 0;
+    }
+    
+    .diagnosis-status {
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    
+    .diagnosis-status h6 {
+        margin-bottom: 0.75rem;
+        color: #1e293b;
+        font-size: 0.9rem;
+    }
+    
+    .badge-danger {
+        background: #fee2e2;
+        color: #dc2626;
+    }
+`;
+document.head.appendChild(settingsStyle);
+
+// Alert function for consistent notifications
+function showAlert(message, type = 'info') {
+    // Remove existing alerts
+    const existingAlerts = document.querySelectorAll('.alert-notification');
+    existingAlerts.forEach(alert => alert.remove());
+    
+    // Create new alert
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show alert-notification`;
+    alertDiv.style.position = 'fixed';
+    alertDiv.style.top = '20px';
+    alertDiv.style.right = '20px';
+    alertDiv.style.zIndex = '9999';
+    alertDiv.style.minWidth = '300px';
+    
+    const iconMap = {
+        'success': 'bi-check-circle',
+        'error': 'bi-exclamation-triangle',
+        'warning': 'bi-exclamation-triangle',
+        'info': 'bi-info-circle'
+    };
+    
+    const icon = iconMap[type] || 'bi-info-circle';
+    
+    alertDiv.innerHTML = `
+        <i class="bi ${icon}"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+
+// Backup Management Functions
+function loadBackups() {
+    fetch('/api/backups')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tbody = document.getElementById('backupsTableBody');
+            const noBackupsMsg = document.getElementById('noBackupsMessage');
+            
+            if (!tbody || !noBackupsMsg) {
+                console.error('Required DOM elements not found');
+                return;
+            }
+            
+            // Safely check if data exists and has backups array
+            const backups = data && data.backups ? data.backups : [];
+            const hasBackups = Array.isArray(backups) && backups.length > 0;
+            
+            if (hasBackups) {
+                tbody.innerHTML = backups.map(backup => `
+                    <tr>
+                        <td>
+                            <strong>${backup.name || 'Unknown'}</strong>
+                            <br>
+                            <small class="text-muted">${backup.timestamp || 'Unknown time'}</small>
+                        </td>
+                        <td>${formatDate(backup.created_at) || 'Unknown'}</td>
+                        <td>
+                            <span class="badge bg-info">${backup.size_mb || '0'} MB</span>
+                        </td>
+                        <td>${backup.description || 'No description'}</td>
+                        <td>
+                            ${backup.exists ? 
+                              '<span class="badge bg-success">Available</span>' : 
+                              '<span class="badge bg-danger">Missing</span>'}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm">
+                                ${backup.exists ? `
+                                    <button class="btn btn-outline-primary" onclick="downloadBackup(${backup.id})" title="Download">
+                                        <i class="bi bi-download"></i>
+                                    </button>
+                                    <button class="btn btn-outline-warning" onclick="restoreBackup(${backup.id}, '${backup.name}')" title="Restore">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                ` : ''}
+                                <button class="btn btn-outline-danger" onclick="deleteBackup(${backup.id}, '${backup.name}')" title="Delete">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+                noBackupsMsg.style.display = 'none';
+            } else {
+                tbody.innerHTML = '';
+                noBackupsMsg.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error loading backups:', error);
+            showAlert('Failed to load backups: ' + error.message, 'error');
+            
+            // Show error state
+            const tbody = document.getElementById('backupsTableBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="text-center text-danger">
+                            <i class="bi bi-exclamation-triangle"></i>
+                            Failed to load backups: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+}
+
+function createBackup() {
+    try {
+        const modal = new bootstrap.Modal(document.getElementById('backupStatusModal'));
+        modal.show();
+        
+        fetch('/api/backup_configs', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            modal.hide();
+            
+            // Safely check response data
+            const success = data && typeof data.success === 'boolean' ? data.success : false;
+            const backupName = data && data.backup_name ? data.backup_name : 'backup';
+            const errorMsg = data && data.error ? data.error : 'Unknown error occurred';
+            
+            if (success) {
+                showAlert(`Backup created successfully: ${backupName}`, 'success');
+                setTimeout(() => loadBackups(), 1000); // Refresh backup list with delay
+            } else {
+                showAlert('Failed to create backup: ' + errorMsg, 'error');
+            }
+        })
+        .catch(error => {
+            modal.hide();
+            console.error('Error creating backup:', error);
+            const errorMessage = error && error.message ? error.message : 'Network or server error';
+            showAlert('Failed to create backup: ' + errorMessage, 'error');
+        });
+    } catch (error) {
+        console.error('Error in createBackup function:', error);
+        showAlert('Error creating backup: ' + error.message, 'error');
+    }
+}
+
+function downloadBackup(backupId) {
+    // Check if backup exists first
+    fetch(`/api/backups/${backupId}/download`, {
+        method: 'HEAD'  // Just check if the resource exists
+    })
+    .then(response => {
+        if (response.ok) {
+            // Create a temporary link to download the backup
+            const link = document.createElement('a');
+            link.href = `/api/backups/${backupId}/download`;
+            link.download = '';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showAlert('Backup download started', 'info');
+        } else {
+            throw new Error('Backup file not found');
+        }
+    })
+    .catch(error => {
+        console.error('Error downloading backup:', error);
+        showAlert('Failed to download backup: ' + error.message, 'error');
+    });
+}
+
+function restoreBackup(backupId, backupName) {
+    // Show confirmation modal
+    const modal = new bootstrap.Modal(document.getElementById('restoreConfirmModal'));
+    document.getElementById('restoreBackupName').textContent = backupName;
+    
+    // Set up confirmation button
+    const confirmBtn = document.getElementById('confirmRestoreBtn');
+    confirmBtn.onclick = function() {
+        modal.hide();
+        performRestore(backupId, backupName);
+    };
+    
+    modal.show();
+}
+
+function performRestore(backupId, backupName) {
+    showAlert('Starting restore process...', 'info');
+    
+    fetch(`/api/backups/${backupId}/restore`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data && data.success) {
+            showAlert(`Backup restored successfully: ${backupName}`, 'success');
+            // Recommend page refresh
+            setTimeout(() => {
+                if (confirm('Backup restored successfully. Refresh the page to see changes?')) {
+                    location.reload();
+                }
+            }, 2000);
+        } else {
+            const errorMsg = data && data.error ? data.error : 'Unknown error occurred';
+            showAlert('Failed to restore backup: ' + errorMsg, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error restoring backup:', error);
+        showAlert('Failed to restore backup: ' + error.message, 'error');
+    });
+}
+
+function deleteBackup(backupId, backupName) {
+    if (confirm(`Are you sure you want to delete backup: ${backupName}?`)) {
+        fetch(`/api/backups/${backupId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data && data.success) {
+                showAlert(`Backup deleted: ${backupName}`, 'success');
+                loadBackups(); // Refresh backup list
+            } else {
+                const errorMsg = data && data.error ? data.error : 'Unknown error occurred';
+                showAlert('Failed to delete backup: ' + errorMsg, 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting backup:', error);
+            showAlert('Failed to delete backup: ' + error.message, 'error');
+        });
+    }
+}
+
+function formatDate(dateString) {
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    } catch (error) {
+        return dateString;
+    }
+}
+
+// Load backups when backup tab is shown
+document.getElementById('backup-tab').addEventListener('shown.bs.tab', function() {
+    loadBackups();
+});
+</script>
+{% endblock %} 

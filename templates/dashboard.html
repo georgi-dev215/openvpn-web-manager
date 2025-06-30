@@ -1,0 +1,1522 @@
+{% extends "base.html" %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Stats Overview -->
+<div class="dashboard-grid">
+    <!-- Server Status Card -->
+    <div class="card server-status-card">
+        <div class="card-header">
+            <h6 class="card-title text-white">
+                <i class="bi bi-server"></i>
+                Server Status
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="server-metrics">
+                <div class="metric-item">
+                    <div class="metric-value">
+                        {% if server_status %}
+                            <i class="bi bi-check-circle-fill me-1"></i>Online
+                        {% else %}
+                            <i class="bi bi-x-circle-fill me-1"></i>Offline
+                        {% endif %}
+                    </div>
+                    <div class="metric-label">Status</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.port or 'N/A' }}</div>
+                    <div class="metric-label">Port</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.protocol or 'N/A' }}</div>
+                    <div class="metric-label">Protocol</div>
+                </div>
+                <div class="metric-item">
+                    <div class="metric-value">{{ server_info.local_ip or 'N/A' }}</div>
+                    <div class="metric-label">Server IP</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Connections Stats -->
+    <div class="card stat-primary">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-wifi"></i>
+            </div>
+            <div class="stat-value active-connections-count">{{ server_stats.active_connections }}</div>
+            <div class="stat-label">Active Connections</div>
+        </div>
+    </div>
+
+    <!-- Active Clients Stats -->
+    <div class="card stat-success">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-people-fill"></i>
+            </div>
+            <div class="stat-value">{{ clients|selectattr('status', 'equalto', 'active')|list|length }}</div>
+            <div class="stat-label">Active Clients</div>
+        </div>
+    </div>
+
+    <!-- Data Sent Stats -->
+    <div class="card stat-info">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-up-circle"></i>
+            </div>
+            <div class="stat-value bytes-sent">{{ (server_stats.total_bytes_sent / 1024 / 1024) | round(1) }}</div>
+            <div class="stat-label">MB Sent</div>
+        </div>
+    </div>
+
+    <!-- Data Received Stats -->
+    <div class="card stat-warning">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-down-circle"></i>
+            </div>
+            <div class="stat-value bytes-received">{{ (server_stats.total_bytes_received / 1024 / 1024) | round(1) }}</div>
+            <div class="stat-label">MB Received</div>
+        </div>
+    </div>
+
+    <!-- CPU Usage Stats -->
+    <div class="card stat-danger">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-cpu"></i>
+            </div>
+            <div class="stat-value cpu-usage">0</div>
+            <div class="stat-label">CPU %</div>
+        </div>
+    </div>
+
+    <!-- Memory Usage Stats -->
+    <div class="card stat-secondary">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-memory"></i>
+            </div>
+            <div class="stat-value memory-usage">0</div>
+            <div class="stat-label">RAM %</div>
+        </div>
+    </div>
+
+    <!-- Upload Speed Stats -->
+    <div class="card stat-upload">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-up-square"></i>
+            </div>
+            <div class="stat-value upload-speed">0</div>
+            <div class="stat-label">Upload Mbps</div>
+        </div>
+    </div>
+
+    <!-- Download Speed Stats -->
+    <div class="card stat-download">
+        <div class="card-body stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-arrow-down-square"></i>
+            </div>
+            <div class="stat-value download-speed">0</div>
+            <div class="stat-label">Download Mbps</div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Section -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card chart-card">
+            <div class="card-header chart-header">
+                <h6 class="card-title">
+                    <i class="bi bi-graph-up me-2"></i>
+                    Network Activity
+                </h6>
+                <small class="text-muted">Real-time data transfer monitoring</small>
+            </div>
+            <div class="card-body">
+                <canvas id="networkChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card chart-card">
+            <div class="card-header chart-header">
+                <h6 class="card-title">
+                    <i class="bi bi-pie-chart me-2"></i>
+                    Connection Status
+                </h6>
+                <small class="text-muted">Active vs offline clients</small>
+            </div>
+            <div class="card-body">
+                <canvas id="connectionsChart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Metrics Charts -->
+<div class="row mb-4">
+    <div class="col-lg-6">
+        <div class="card chart-card">
+            <div class="card-header chart-header">
+                <h6 class="card-title">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    System Performance
+                </h6>
+                                    <small class="text-muted">CPU and RAM monitoring</small>
+            </div>
+            <div class="card-body">
+                <canvas id="systemChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card chart-card">
+            <div class="card-header chart-header">
+                <h6 class="card-title">
+                    <i class="bi bi-arrow-left-right me-2"></i>
+                    Network Bandwidth
+                </h6>
+                                    <small class="text-muted">Incoming and outgoing traffic speed</small>
+            </div>
+            <div class="card-body">
+                <canvas id="bandwidthChart" height="250"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Traffic History -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-graph-up-arrow"></i>
+                    Client Traffic History
+                </h6>
+                <div class="d-flex gap-2">
+                    <select id="trafficPeriod" class="form-select form-select-sm" style="width: auto;">
+                        <option value="7">Last 7 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                    <button id="refreshTraffic" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="trafficHistoryContainer">
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading traffic history...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-activity"></i>
+                    Recent Connections
+                </h6>
+                <a href="{{ url_for('connections_page') }}" class="btn btn-outline-primary btn-sm">
+                    View All
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if active_connections %}
+                    <div class="recent-activity">
+                        {% for conn in active_connections %}
+                        {% if loop.index <= 5 %}
+                        <div class="activity-item">
+                            <div class="activity-icon">
+                                <i class="bi bi-wifi text-success"></i>
+                            </div>
+                            <div class="activity-content">
+                                <div class="activity-title">{{ conn.name }}</div>
+                                <div class="activity-meta">{{ conn.real_address }}</div>
+                            </div>
+                            <div class="activity-time">
+                                <span class="text-success">
+                                    <i class="bi bi-clock-fill me-1"></i>
+                                    {{ conn.duration_formatted }}
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <div class="empty-state-small">
+                        <i class="bi bi-wifi-off text-muted"></i>
+                        <p>No active connections</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-people"></i>
+                    Client Overview
+                </h6>
+                <a href="{{ url_for('clients_page') }}" class="btn btn-outline-primary btn-sm">
+                    Manage Clients
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="client-overview">
+                    <div class="overview-item">
+                        <div class="overview-number text-success">{{ clients|selectattr('status', 'equalto', 'active')|list|length }}</div>
+                        <div class="overview-label">Active Clients</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="overview-number text-primary">{{ active_connections|length }}</div>
+                        <div class="overview-label">Currently Connected</div>
+                    </div>
+                    <div class="overview-item">
+                        <div class="overview-number text-muted">{{ clients|selectattr('status', 'equalto', 'revoked')|list|length }}</div>
+                        <div class="overview-label">Revoked</div>
+                    </div>
+                </div>
+                
+                {% if clients|selectattr('status', 'equalto', 'active')|list %}
+                <div class="mt-3">
+                    <h6 class="mb-2">Recent Clients</h6>
+                    {% for client in clients|selectattr('status', 'equalto', 'active')|list %}
+                    {% if loop.index <= 3 %}
+                    <div class="client-item">
+                        <div class="client-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="client-info">
+                            <div class="client-name">{{ client.name }}</div>
+                            <div class="client-status">
+                                {% if client.is_online and client.current_connection %}
+                                    <span class="text-success">
+                                        <i class="bi bi-circle-fill me-1"></i>
+                                        {{ client.current_connection.duration_formatted }}
+                                    </span>
+                                {% elif client.is_online %}
+                                    <span class="text-success">
+                                        <i class="bi bi-circle-fill me-1"></i>
+                                        Online
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted">
+                                        <i class="bi bi-circle me-1"></i>
+                                        Offline
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Client History Modal -->
+<div class="modal fade" id="clientHistoryModal" tabindex="-1" aria-labelledby="clientHistoryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="clientHistoryModalLabel">
+                    <i class="bi bi-clock-history me-2"></i>Connection History for <span id="clientNameTitle"></span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="clientHistoryContent">
+                    <div class="text-center p-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading connection history...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+
+
+<script>
+let lastUpdateTime = Date.now();
+let updateInterval;
+let networkChart;
+let connectionsChart;
+let systemChart;
+let bandwidthChart;
+
+// Initialize charts  
+function initCharts() {
+    // Get initial client statistics (will be updated via API)
+    const initialConnectedClients = 0; // Will be updated by API call
+    const initialOfflineClients = 0; // Will be updated by API call
+    
+    // Network Activity Chart
+    const networkCtx = document.getElementById('networkChart').getContext('2d');
+    networkChart = new Chart(networkCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Data Sent (MB)',
+                data: [],
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Data Received (MB)',
+                data: [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // Connections Distribution Chart
+    const connectionsCtx = document.getElementById('connectionsChart').getContext('2d');
+    
+    connectionsChart = new Chart(connectionsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Connected', 'Offline'],
+            datasets: [{
+                data: [0, 0], // Will be updated by first API call
+                backgroundColor: ['#10b981', '#e5e7eb'],
+                borderWidth: 0,
+                hoverBackgroundColor: ['#059669', '#d1d5db']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        font: {
+                            size: 12,
+                            weight: 500
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+    
+    // System Performance Chart
+    const systemCtx = document.getElementById('systemChart').getContext('2d');
+    systemChart = new Chart(systemCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'CPU %',
+                data: [],
+                borderColor: '#ef4444',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'RAM %',
+                data: [],
+                borderColor: '#8b5cf6',
+                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+
+    // Network Bandwidth Chart
+    const bandwidthCtx = document.getElementById('bandwidthChart').getContext('2d');
+    bandwidthChart = new Chart(bandwidthCtx, {
+        type: 'line', 
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Download (Mbps)',
+                data: [],
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.4
+            }, {
+                label: 'Upload (Mbps)',
+                data: [],
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                x: {
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                }
+            }
+        }
+    });
+    
+    // Start collecting data
+    updateChartData();
+    loadTrafficHistory();
+}
+
+function updateChartData() {
+    const now = new Date();
+    const timeLabel = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    // Add new data point
+    if (networkChart.data.labels.length >= 10) {
+        networkChart.data.labels.shift();
+        networkChart.data.datasets[0].data.shift();
+        networkChart.data.datasets[1].data.shift();
+    }
+    
+    networkChart.data.labels.push(timeLabel);
+    networkChart.data.datasets[0].data.push(parseFloat(document.querySelector('.bytes-sent').textContent));
+    networkChart.data.datasets[1].data.push(parseFloat(document.querySelector('.bytes-received').textContent));
+    
+    networkChart.update('active');
+}
+
+
+
+function updateActivityData() {
+    fetch('/api/activity')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Update server stats with animation
+            updateStatWithAnimation('.active-connections-count', data.server_stats.active_connections);
+            updateStatWithAnimation('.bytes-sent', (data.server_stats.total_bytes_sent / 1024 / 1024).toFixed(1));
+            updateStatWithAnimation('.bytes-received', (data.server_stats.total_bytes_received / 1024 / 1024).toFixed(1));
+            
+            // Update system metrics
+            if (data.system_metrics) {
+                updateStatWithAnimation('.cpu-usage', data.system_metrics.cpu.percent);
+                updateStatWithAnimation('.memory-usage', data.system_metrics.memory.percent);
+                
+                // Update system chart
+                updateSystemChart(data.system_metrics);
+            }
+            
+            // Update network bandwidth
+            if (data.network_bandwidth) {
+                updateStatWithAnimation('.upload-speed', data.network_bandwidth.upload_mbps);
+                updateStatWithAnimation('.download-speed', data.network_bandwidth.download_mbps);
+                
+                // Update bandwidth chart
+                updateBandwidthChart(data.network_bandwidth);
+            }
+            
+            // Update client statuses in overview
+            updateClientStatuses(data.active_connections);
+            
+            // Update overview statistics
+            const connectedCountElement = document.querySelector('.overview-item:nth-child(2) .overview-number');
+            if (connectedCountElement) {
+                updateStatWithAnimation(connectedCountElement, data.client_stats.currently_connected);
+            }
+            
+            // Update charts
+            updateChartData();
+            
+            // Update connections chart with improved data handling
+            if (connectionsChart) {
+                const connectedCount = data.client_stats.currently_connected || 0;
+                const offlineCount = data.client_stats.offline_clients || 0;
+                const totalCount = connectedCount + offlineCount;
+                
+                // Update chart data
+                connectionsChart.data.datasets[0].data = [connectedCount, offlineCount];
+                
+                // Update labels to show actual numbers
+                connectionsChart.data.labels = [
+                    `Connected (${connectedCount})`,
+                    `Offline (${offlineCount})`
+                ];
+                
+                // Ensure colors are correct
+                connectionsChart.data.datasets[0].backgroundColor = ['#10b981', '#e5e7eb'];
+                connectionsChart.data.datasets[0].hoverBackgroundColor = ['#059669', '#d1d5db'];
+                
+                // If no clients at all, show "No clients" message
+                if (totalCount === 0) {
+                    connectionsChart.data.datasets[0].data = [0, 1];
+                    connectionsChart.data.labels = ['Connected (0)', 'No clients'];
+                    connectionsChart.data.datasets[0].backgroundColor = ['#10b981', '#f3f4f6'];
+                }
+                
+                connectionsChart.update('active');
+            }
+            
+            lastUpdateTime = Date.now();
+        })
+        .catch(error => {
+            console.error('Error updating activity data:', error);
+        });
+}
+
+function updateClientStatuses(activeConnections) {
+    // Get all client items in the overview
+    const clientItems = document.querySelectorAll('.client-item');
+    
+    clientItems.forEach(item => {
+        const clientNameElement = item.querySelector('.client-name');
+        const clientStatusElement = item.querySelector('.client-status span');
+        
+        if (clientNameElement && clientStatusElement) {
+            const clientName = clientNameElement.textContent.trim();
+            
+            // Find this client in active connections
+            const activeConn = activeConnections.find(conn => conn.name === clientName);
+            const isOnline = !!activeConn;
+            
+            const currentStatus = clientStatusElement.innerHTML;
+            
+            // Add animation effect
+            clientStatusElement.style.transition = 'all 0.3s ease';
+            clientStatusElement.style.transform = 'scale(1.1)';
+            
+            setTimeout(() => {
+                if (isOnline && activeConn.duration_formatted) {
+                    clientStatusElement.className = 'text-success';
+                    clientStatusElement.innerHTML = `<i class="bi bi-circle-fill me-1"></i>${activeConn.duration_formatted}`;
+                } else if (isOnline) {
+                    clientStatusElement.className = 'text-success';
+                    clientStatusElement.innerHTML = '<i class="bi bi-circle-fill me-1"></i>Online';
+                } else {
+                    clientStatusElement.className = 'text-muted';
+                    clientStatusElement.innerHTML = '<i class="bi bi-circle me-1"></i>Offline';
+                }
+                
+                // Reset animation
+                setTimeout(() => {
+                    clientStatusElement.style.transform = 'scale(1)';
+                }, 100);
+            }, 150);
+        }
+    });
+}
+
+function updateStatWithAnimation(selectorOrElement, newValue) {
+    const element = typeof selectorOrElement === 'string' 
+        ? document.querySelector(selectorOrElement) 
+        : selectorOrElement;
+        
+    if (element && element.textContent !== newValue.toString()) {
+        // Add smooth transition with glow effect
+        element.style.transition = 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+        element.style.transform = 'scale(1.15)';
+        element.style.color = '#3b82f6';
+        element.style.textShadow = '0 0 8px rgba(59, 130, 246, 0.5)';
+        
+        setTimeout(() => {
+            element.textContent = newValue;
+            element.style.transform = 'scale(1)';
+            element.style.color = '';
+            element.style.textShadow = '';
+        }, 300);
+    }
+}
+
+function updateSystemChart(systemMetrics) {
+    if (!systemChart) return;
+    
+    const now = new Date();
+    const timeLabel = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    // Add new data point
+    if (systemChart.data.labels.length >= 15) {
+        systemChart.data.labels.shift();
+        systemChart.data.datasets[0].data.shift();
+        systemChart.data.datasets[1].data.shift();
+    }
+    
+    systemChart.data.labels.push(timeLabel);
+    systemChart.data.datasets[0].data.push(systemMetrics.cpu.percent);
+    systemChart.data.datasets[1].data.push(systemMetrics.memory.percent);
+    
+    systemChart.update('active');
+}
+
+function updateBandwidthChart(networkBandwidth) {
+    if (!bandwidthChart) return;
+    
+    const now = new Date();
+    const timeLabel = now.getHours() + ':' + now.getMinutes().toString().padStart(2, '0');
+    
+    // Add new data point
+    if (bandwidthChart.data.labels.length >= 15) {
+        bandwidthChart.data.labels.shift();
+        bandwidthChart.data.datasets[0].data.shift();
+        bandwidthChart.data.datasets[1].data.shift();
+    }
+    
+    bandwidthChart.data.labels.push(timeLabel);
+    bandwidthChart.data.datasets[0].data.push(networkBandwidth.download_mbps);
+    bandwidthChart.data.datasets[1].data.push(networkBandwidth.upload_mbps);
+    
+    bandwidthChart.update('active');
+}
+
+function loadTrafficHistory() {
+    const container = document.getElementById('trafficHistoryContainer');
+    
+    fetch('/api/traffic_summary')
+        .then(response => response.json())
+        .then(data => {
+            displayTrafficHistory(data);
+        })
+        .catch(error => {
+            console.error('Error loading traffic history:', error);
+            container.innerHTML = `
+                <div class="text-center p-4">
+                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                    <p class="mt-2 text-muted">Error loading traffic history</p>
+                </div>
+            `;
+        });
+}
+
+function displayTrafficHistory(trafficData) {
+    const container = document.getElementById('trafficHistoryContainer');
+    
+    if (!trafficData || trafficData.length === 0) {
+        container.innerHTML = `
+            <div class="text-center p-4">
+                <i class="bi bi-inbox text-muted"></i>
+                <p class="mt-2 text-muted">Traffic history is empty</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Sort by total traffic (descending)
+    trafficData.sort((a, b) => b.total_bytes - a.total_bytes);
+    
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Client</th>
+                        <th>Sent</th>
+                        <th>Received</th>
+                        <th>Total</th>
+                        <th>Online Time</th>
+                        <th>Sessions</th>
+                        <th>Last Activity</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    trafficData.forEach((client, index) => {
+        const rowClass = index % 2 === 0 ? 'table-light' : '';
+        const totalTrafficClass = client.total_gb > 1 ? 'text-success fw-bold' : 
+                                 client.total_mb > 100 ? 'text-warning' : 'text-muted';
+        
+        html += `
+            <tr class="${rowClass}">
+                <td>
+                    <div class="d-flex align-items-center">
+                        <i class="bi bi-person-circle me-2 text-primary"></i>
+                        <strong>${client.client_name}</strong>
+                    </div>
+                </td>
+                <td>
+                    <span class="text-info">
+                        ${client.sent_gb > 0 ? client.sent_gb + ' GB' : client.sent_mb + ' MB'}
+                    </span>
+                </td>
+                <td>
+                    <span class="text-success">
+                        ${client.received_gb > 0 ? client.received_gb + ' GB' : client.received_mb + ' MB'}
+                    </span>
+                </td>
+                <td>
+                    <span class="${totalTrafficClass}">
+                        ${client.total_gb > 0 ? client.total_gb + ' GB' : client.total_mb + ' MB'}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">${client.duration_formatted}</span>
+                </td>
+                <td>
+                    <span class="badge bg-primary">${client.session_count}</span>
+                </td>
+                <td>
+                    <small class="text-muted">
+                        ${client.last_session ? new Date(client.last_session).toLocaleString('en-US') : 'No data'}
+                    </small>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-outline-info" onclick="showClientHistory('${client.client_name}')" title="View connection history">
+                        <i class="bi bi-clock-history"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    container.innerHTML = html;
+}
+
+// Event listeners for traffic history
+document.addEventListener('DOMContentLoaded', function() {
+    // Traffic period selector
+    const trafficPeriodSelect = document.getElementById('trafficPeriod');
+    if (trafficPeriodSelect) {
+        trafficPeriodSelect.addEventListener('change', function() {
+            loadTrafficHistory();
+        });
+    }
+    
+    // Refresh traffic button
+    const refreshTrafficBtn = document.getElementById('refreshTraffic');
+    if (refreshTrafficBtn) {
+        refreshTrafficBtn.addEventListener('click', function() {
+            loadTrafficHistory();
+        });
+    }
+});
+
+// Add CSS for dashboard-specific styling
+const style = document.createElement('style');
+style.textContent = `
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .recent-activity {
+        padding: 0;
+    }
+    
+    .activity-item {
+        display: flex;
+        align-items: center;
+        padding: 1rem 1.5rem;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .activity-item:last-child {
+        border-bottom: none;
+    }
+    
+    .activity-icon {
+        width: 40px;
+        height: 40px;
+        background: #f0f9ff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-right: 1rem;
+    }
+    
+    .activity-content {
+        flex: 1;
+    }
+    
+    .activity-title {
+        font-weight: 600;
+        color: #1e293b;
+    }
+    
+    .activity-meta {
+        font-size: 0.85rem;
+        color: #64748b;
+    }
+    
+    .activity-time {
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .client-overview {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .overview-item {
+        text-align: center;
+        padding: 1rem;
+        background: #f8fafc;
+        border-radius: 8px;
+    }
+    
+    .overview-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 0.25rem;
+    }
+    
+    .overview-label {
+        font-size: 0.8rem;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .client-item {
+        display: flex;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .client-item:last-child {
+        border-bottom: none;
+    }
+    
+    .client-avatar {
+        font-size: 1.25rem;
+        color: #3b82f6;
+        margin-right: 0.75rem;
+    }
+    
+    .client-info {
+        flex: 1;
+    }
+    
+    .client-name {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .client-status {
+        font-size: 0.8rem;
+    }
+    
+    .client-status .text-success {
+        color: #10b981 !important;
+        font-weight: 500;
+    }
+    
+    .client-status .text-muted {
+        color: #64748b !important;
+    }
+    
+    .client-status i {
+        font-size: 0.7rem;
+    }
+    
+    .empty-state-small {
+        text-align: center;
+        padding: 2rem;
+        color: #64748b;
+    }
+    
+    .empty-state-small i {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+        display: block;
+    }
+    
+    /* Enhanced dashboard styling */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+    
+    .chart-card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.3s ease;
+    }
+    
+    .chart-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    
+    .chart-header {
+        background: linear-gradient(135deg, #fafcff 0%, #f1f5f9 100%);
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1.5rem;
+    }
+    
+    .chart-header .card-title {
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    /* Enhanced stats cards */
+    .stat-card {
+        text-align: center;
+        padding: 2rem 1.5rem;
+        border-radius: 12px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .stat-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: var(--stat-color, #3b82f6);
+        transition: height 0.3s ease;
+    }
+    
+    .stat-card:hover::before {
+        height: 8px;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+    
+    .stat-primary {
+        --stat-color: #3b82f6;
+        background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+        border: 1px solid #e0f2fe;
+    }
+    
+    .stat-success {
+        --stat-color: #10b981;
+        background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+        border: 1px solid #d1fae5;
+    }
+    
+    .stat-info {
+        --stat-color: #0ea5e9;
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border: 1px solid #cffafe;
+    }
+    
+    .stat-warning {
+        --stat-color: #f59e0b;
+        background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+        border: 1px solid #fed7aa;
+    }
+    
+    .stat-danger {
+        --stat-color: #ef4444;
+        background: linear-gradient(135deg, #fef2f2 0%, #fecaca 100%);
+        border: 1px solid #fca5a5;
+    }
+    
+    .stat-secondary {
+        --stat-color: #8b5cf6;
+        background: linear-gradient(135deg, #faf5ff 0%, #e9d5ff 100%);
+        border: 1px solid #d8b4fe;
+    }
+    
+    .stat-upload {
+        --stat-color: #06b6d4;
+        background: linear-gradient(135deg, #ecfeff 0%, #cffafe 100%);
+        border: 1px solid #a5f3fc;
+    }
+    
+    .stat-download {
+        --stat-color: #84cc16;
+        background: linear-gradient(135deg, #f7fee7 0%, #d9f99d 100%);
+        border: 1px solid #bef264;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+        opacity: 0.8;
+    }
+    
+    .stat-primary .stat-icon {
+        color: #3b82f6;
+    }
+    
+    .stat-success .stat-icon {
+        color: #10b981;
+    }
+    
+    .stat-info .stat-icon {
+        color: #0ea5e9;
+    }
+    
+    .stat-warning .stat-icon {
+        color: #f59e0b;
+    }
+    
+    .stat-danger .stat-icon {
+        color: #ef4444;
+    }
+    
+    .stat-secondary .stat-icon {
+        color: #8b5cf6;
+    }
+    
+    .stat-upload .stat-icon {
+        color: #06b6d4;
+    }
+    
+    .stat-download .stat-icon {
+        color: #84cc16;
+    }
+    
+    .stat-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #1e293b;
+        margin-bottom: 0.5rem;
+        line-height: 1;
+    }
+    
+    .stat-label {
+        font-size: 0.9rem;
+        color: #64748b;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Server status card enhancement */
+    .server-status-card {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        color: white;
+        border: none;
+        box-shadow: 0 8px 24px rgba(30, 41, 59, 0.2);
+    }
+    
+    .server-status-card .card-header {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        background: transparent;
+    }
+    
+    .server-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.5rem;
+        padding: 1rem 0;
+    }
+    
+    .metric-item {
+        text-align: center;
+    }
+    
+    .metric-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: white;
+    }
+    
+    .metric-label {
+        font-size: 0.8rem;
+        color: rgba(255, 255, 255, 0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    /* Activity cards */
+    .card {
+        border: none;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+    }
+    
+    .card-header {
+        background: #f8fafc;
+        border-bottom: 1px solid #e2e8f0;
+        padding: 1.25rem 1.5rem;
+    }
+    
+    .card-title {
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 1rem;
+    }
+`;
+document.head.appendChild(style);
+
+// Start auto-refresh and initialize
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize charts
+    initCharts();
+    
+    // Initial update
+    updateActivityData();
+    
+    // Set up regular updates every 15 seconds
+    updateInterval = setInterval(updateActivityData, 2000); // Update every 5 seconds for smoother updates
+    
+    // Update immediately when page becomes visible
+    document.addEventListener('visibilitychange', function() {
+        if (!document.hidden && Date.now() - lastUpdateTime > 10000) {
+            updateActivityData();
+        }
+    });
+});
+
+// Clean up interval when page unloads
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+
+// Client history modal functions
+function showClientHistory(clientName) {
+    document.getElementById('clientNameTitle').textContent = clientName;
+    
+    const modal = new bootstrap.Modal(document.getElementById('clientHistoryModal'));
+    modal.show();
+    
+    // Load client history
+    loadClientHistory(clientName);
+}
+
+function loadClientHistory(clientName) {
+    const content = document.getElementById('clientHistoryContent');
+    
+    content.innerHTML = `
+        <div class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading connection history...</p>
+        </div>
+    `;
+    
+    fetch(`/api/client_history/${encodeURIComponent(clientName)}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Client history API response:', data);
+            // Ensure data is an array
+            if (Array.isArray(data)) {
+                displayClientHistory(data);
+            } else {
+                console.error('Expected array but got:', data);
+                displayClientHistory([]);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading client history:', error);
+            content.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    Failed to load connection history: ${error.message}
+                </div>
+            `;
+        });
+}
+
+function displayClientHistory(historyData) {
+    const content = document.getElementById('clientHistoryContent');
+    
+    // Ensure historyData is an array
+    if (!historyData || !Array.isArray(historyData) || historyData.length === 0) {
+        content.innerHTML = `
+            <div class="text-center p-4">
+                <i class="bi bi-clock text-muted" style="font-size: 3rem;"></i>
+                <h5 class="mt-3">No Connection History</h5>
+                <p class="text-muted">This client has no recorded connection history.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="table-responsive">
+            <table class="table table-striped">
+                <thead class="table-dark">
+                    <tr>
+                        <th><i class="bi bi-calendar3 me-1"></i>Connected</th>
+                        <th><i class="bi bi-calendar3 me-1"></i>Disconnected</th>
+                        <th><i class="bi bi-clock me-1"></i>Duration</th>
+                        <th><i class="bi bi-router me-1"></i>Public IP</th>
+                        <th><i class="bi bi-hdd-network me-1"></i>VPN IP</th>
+                        <th><i class="bi bi-arrow-up-circle text-success me-1"></i>Sent</th>
+                        <th><i class="bi bi-arrow-down-circle text-info me-1"></i>Received</th>
+                        <th><i class="bi bi-graph-up me-1"></i>Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    historyData.forEach((session, index) => {
+        const rowClass = index % 2 === 0 ? '' : 'table-light';
+        const totalMB = ((session.bytes_sent + session.bytes_received) / 1024 / 1024).toFixed(2);
+        const sentMB = (session.bytes_sent / 1024 / 1024).toFixed(2);
+        const receivedMB = (session.bytes_received / 1024 / 1024).toFixed(2);
+        
+        const connectedTime = session.start_time ? new Date(session.start_time).toLocaleString() : 'N/A';
+        const disconnectedTime = session.end_time ? new Date(session.end_time).toLocaleString() : 'Still connected';
+        
+        html += `
+            <tr class="${rowClass}">
+                <td>
+                    <small class="text-success">
+                        <i class="bi bi-play-circle me-1"></i>
+                        ${connectedTime}
+                    </small>
+                </td>
+                <td>
+                    <small class="${session.end_time ? 'text-danger' : 'text-warning'}">
+                        <i class="bi bi-${session.end_time ? 'stop' : 'circle'}-circle me-1"></i>
+                        ${disconnectedTime}
+                    </small>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">
+                        ${session.duration_formatted || 'Calculating...'}
+                    </span>
+                </td>
+                <td>
+                    <code class="text-primary">
+                        ${session.real_address || 'N/A'}
+                    </code>
+                </td>
+                <td>
+                    <code class="text-info">
+                        ${session.virtual_address || 'N/A'}
+                    </code>
+                </td>
+                <td>
+                    <span class="text-success fw-bold">
+                        ${sentMB} MB
+                    </span>
+                </td>
+                <td>
+                    <span class="text-info fw-bold">
+                        ${receivedMB} MB
+                    </span>
+                </td>
+                <td>
+                    <span class="fw-bold ${totalMB > 100 ? 'text-warning' : 'text-muted'}">
+                        ${totalMB} MB
+                    </span>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="mt-3">
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="card border-primary">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-primary">
+                                <i class="bi bi-collection me-1"></i>
+                                Total Sessions
+                            </h5>
+                            <h3 class="text-primary">${historyData.length}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-success">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-success">
+                                <i class="bi bi-clock me-1"></i>
+                                Total Online Time
+                            </h5>
+                            <h3 class="text-success">${calculateTotalDuration(historyData)}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card border-info">
+                        <div class="card-body text-center">
+                            <h5 class="card-title text-info">
+                                <i class="bi bi-hdd-network me-1"></i>
+                                Total Data
+                            </h5>
+                            <h3 class="text-info">${calculateTotalData(historyData)} MB</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = html;
+}
+
+function calculateTotalDuration(historyData) {
+    let totalSeconds = 0;
+    
+    historyData.forEach(session => {
+        // Use numeric duration field (in seconds) instead of parsing formatted string
+        if (session.duration && typeof session.duration === 'number' && session.duration > 0) {
+            totalSeconds += session.duration;
+        }
+    });
+    
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+function calculateTotalData(historyData) {
+    let totalBytes = 0;
+    
+    historyData.forEach(session => {
+        totalBytes += (session.bytes_sent || 0) + (session.bytes_received || 0);
+    });
+    
+    return (totalBytes / 1024 / 1024).toFixed(2);
+}
+</script>
+{% endblock %} 

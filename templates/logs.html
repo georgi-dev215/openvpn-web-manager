@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block page_title %}{{ log_name }}{% endblock %}
+
+{% block content %}
+<!-- Log Header -->
+<div class="row mb-3">
+    <div class="col-md-8">
+        <h4>
+            <i class="bi bi-file-earmark-text me-2"></i>{{ log_name }}
+        </h4>
+        <p class="text-muted">Real-time log monitoring</p>
+    </div>
+    <div class="col-md-4 text-end">
+        <div class="btn-group" role="group">
+            <button class="btn btn-outline-primary" onclick="refreshLogs()">
+                <i class="bi bi-arrow-clockwise"></i> Refresh
+            </button>
+            <button class="btn btn-outline-secondary" onclick="downloadLogs()">
+                <i class="bi bi-download"></i> Download
+            </button>
+            <a href="{{ url_for('settings_page') }}" class="btn btn-outline-dark">
+                <i class="bi bi-arrow-left"></i> Back
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Log Controls -->
+<div class="row mb-3">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Display Options</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label for="lineCount" class="form-label">Lines to show:</label>
+                        <select class="form-select" id="lineCount" onchange="refreshLogs()">
+                            <option value="25">Last 25 lines</option>
+                            <option value="50" selected>Last 50 lines</option>
+                            <option value="100">Last 100 lines</option>
+                            <option value="200">Last 200 lines</option>
+                            <option value="500">Last 500 lines</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Auto-refresh:</label>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                            <label class="form-check-label" for="autoRefresh">
+                                Enable auto-refresh (10s)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h6 class="card-title">Filter Options</h6>
+                <div class="row">
+                    <div class="col-md-8">
+                        <label for="filterText" class="form-label">Filter text:</label>
+                        <input type="text" class="form-control" id="filterText" placeholder="Enter text to filter..." onkeyup="filterLogs()">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Options:</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="highlightFilter">
+                            <label class="form-check-label" for="highlightFilter">
+                                Highlight matches
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Status -->
+<div class="alert alert-info" id="logStatus">
+    <i class="bi bi-info-circle me-2"></i>
+    <span id="statusText">Loading logs...</span>
+    <div class="float-end">
+        <small>Last updated: <span id="lastUpdate">--:--:--</span></small>
+    </div>
+</div>
+
+<!-- Log Content -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="card-title mb-0">
+            <i class="bi bi-terminal"></i>
+            Log Content
+        </h6>
+        <div class="log-controls">
+            <button class="btn btn-outline-secondary btn-sm" onclick="clearLogView()">
+                <i class="bi bi-x-circle"></i> Clear View
+            </button>
+            <button class="btn btn-outline-primary btn-sm" onclick="scrollToBottom()">
+                <i class="bi bi-arrow-down"></i> Scroll to Bottom
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="logContainer" class="log-container">
+            <div id="logContent" class="log-content">
+                <div class="log-line-loading">
+                    <i class="bi bi-hourglass-split"></i> Loading log content...
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Status Indicator -->
+<div class="status-indicator">
+    <div id="refreshIndicator" class="badge bg-secondary">
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        <span id="refreshStatus">Ready</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshEnabled = true;
+let refreshInterval;
+let logType = '{{ log_type }}';
+
+function updateRefreshIndicator(status = 'loading') {
+    const indicator = document.getElementById('refreshIndicator');
+    const statusSpan = document.getElementById('refreshStatus');
+    
+    if (status === 'loading') {
+        indicator.className = 'badge bg-warning';
+        statusSpan.innerHTML = '<i class="bi bi-arrow-clockwise spin me-1"></i>Loading...';
+    } else if (status === 'success') {
+        indicator.className = 'badge bg-success';
+        statusSpan.innerHTML = `<i class="bi bi-check-circle me-1"></i>Updated`;
+        setTimeout(() => {
+            if (indicator.className.includes('bg-success')) {
+                indicator.className = 'badge bg-secondary';
+                statusSpan.innerHTML = 'Ready';
+            }
+        }, 2000);
+    } else if (status === 'error') {
+        indicator.className = 'badge bg-danger';
+        statusSpan.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Error';
+    }
+}
+
+function refreshLogs() {
+    updateRefreshIndicator('loading');
+    
+    const lines = document.getElementById('lineCount').value;
+    const statusElement = document.getElementById('logStatus');
+    const statusText = document.getElementById('statusText');
+    
+    fetch(`/api/logs/${logType}?lines=${lines}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.exists) {
+                displayLogContent(data.content);
+                statusElement.className = 'alert alert-success';
+                statusText.innerHTML = `<i class="bi bi-check-circle me-2"></i>Log loaded successfully (${data.lines} lines)`;
+                updateRefreshIndicator('success');
+            } else {
+                statusElement.className = 'alert alert-warning';
+                statusText.innerHTML = `<i class="bi bi-exclamation-triangle me-2"></i>Log file not found or not readable`;
+                document.getElementById('logContent').innerHTML = '<div class="log-line-error">Log file not available</div>';
+                updateRefreshIndicator('error');
+            }
+            
+            document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+        })
+        .catch(error => {
+            console.error('Error loading logs:', error);
+            statusElement.className = 'alert alert-danger';
+            statusText.innerHTML = `<i class="bi bi-x-circle me-2"></i>Error loading logs: ${error.message}`;
+            document.getElementById('logContent').innerHTML = '<div class="log-line-error">Error loading log content</div>';
+            updateRefreshIndicator('error');
+        });
+}
+
+function displayLogContent(content) {
+    const logContent = document.getElementById('logContent');
+    
+    if (!content || content.trim() === '') {
+        logContent.innerHTML = '<div class="log-line-empty">Log file is empty or no recent entries</div>';
+        return;
+    }
+    
+    const lines = content.split('\n');
+    let html = '';
+    
+    lines.forEach((line, index) => {
+        if (line.trim() === '') return;
+        
+        let lineClass = 'log-line';
+        
+        // Add special styling for different log levels
+        if (line.toLowerCase().includes('error') || line.toLowerCase().includes('failed')) {
+            lineClass += ' log-error';
+        } else if (line.toLowerCase().includes('warning') || line.toLowerCase().includes('warn')) {
+            lineClass += ' log-warning';
+        } else if (line.toLowerCase().includes('connected') || line.toLowerCase().includes('success')) {
+            lineClass += ' log-success';
+        } else if (line.toLowerCase().includes('info') || line.toLowerCase().includes('started')) {
+            lineClass += ' log-info';
+        }
+        
+        html += `<div class="${lineClass}" data-line="${index + 1}">`;
+        html += `<span class="line-number">${index + 1}</span>`;
+        html += `<span class="line-content">${escapeHtml(line)}</span>`;
+        html += `</div>`;
+    });
+    
+    logContent.innerHTML = html;
+    filterLogs(); // Apply current filter
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function filterLogs() {
+    const filterText = document.getElementById('filterText').value.toLowerCase();
+    const highlight = document.getElementById('highlightFilter').checked;
+    const logLines = document.querySelectorAll('.log-line');
+    
+    logLines.forEach(line => {
+        const content = line.querySelector('.line-content');
+        const originalText = content.textContent.toLowerCase();
+        
+        if (filterText === '' || originalText.includes(filterText)) {
+            line.style.display = '';
+            
+            if (highlight && filterText !== '') {
+                // Highlight matching text
+                const regex = new RegExp(`(${escapeRegex(filterText)})`, 'gi');
+                const highlightedText = content.textContent.replace(regex, '<mark>$1</mark>');
+                content.innerHTML = highlightedText;
+            } else {
+                // Reset to original text
+                content.textContent = content.textContent;
+            }
+        } else {
+            line.style.display = 'none';
+        }
+    });
+}
+
+function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function clearLogView() {
+    document.getElementById('logContent').innerHTML = '<div class="log-line-empty">Log view cleared</div>';
+    document.getElementById('filterText').value = '';
+}
+
+function scrollToBottom() {
+    const container = document.getElementById('logContainer');
+    container.scrollTop = container.scrollHeight;
+}
+
+function downloadLogs() {
+    const lines = document.getElementById('lineCount').value;
+    window.open(`/api/logs/${logType}?lines=${lines}&download=1`, '_blank');
+}
+
+// Auto-refresh toggle
+document.getElementById('autoRefresh').addEventListener('change', function() {
+    autoRefreshEnabled = this.checked;
+    
+    if (autoRefreshEnabled) {
+        refreshLogs();
+        refreshInterval = setInterval(refreshLogs, 10000); // 10 seconds
+    } else {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+        }
+    }
+});
+
+// Add CSS styles
+const style = document.createElement('style');
+style.textContent = `
+    .log-container {
+        max-height: 600px;
+        overflow-y: auto;
+        background: #f8f9fa;
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+    }
+    
+    .log-content {
+        padding: 0;
+    }
+    
+    .log-line {
+        display: flex;
+        padding: 0.25rem 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s;
+    }
+    
+    .log-line:hover {
+        background-color: #e9ecef;
+    }
+    
+    .log-line.log-error {
+        background-color: #f8d7da;
+        border-left: 3px solid #dc3545;
+    }
+    
+    .log-line.log-warning {
+        background-color: #fff3cd;
+        border-left: 3px solid #ffc107;
+    }
+    
+    .log-line.log-success {
+        background-color: #d1e7dd;
+        border-left: 3px solid #198754;
+    }
+    
+    .log-line.log-info {
+        background-color: #cff4fc;
+        border-left: 3px solid #0dcaf0;
+    }
+    
+    .line-number {
+        width: 60px;
+        color: #6c757d;
+        text-align: right;
+        padding-right: 1rem;
+        user-select: none;
+        flex-shrink: 0;
+    }
+    
+    .line-content {
+        flex: 1;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+    
+    .log-line-loading,
+    .log-line-error,
+    .log-line-empty {
+        padding: 2rem;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+    }
+    
+    .log-line-error {
+        color: #dc3545;
+    }
+    
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    mark {
+        background-color: #ffeb3b;
+        padding: 0.1rem 0.2rem;
+        border-radius: 2px;
+    }
+    
+    .log-controls {
+        display: flex;
+        gap: 0.5rem;
+    }
+`;
+document.head.appendChild(style);
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    refreshLogs();
+    
+    if (autoRefreshEnabled) {
+        refreshInterval = setInterval(refreshLogs, 10000);
+    }
+});
+
+// Cleanup
+window.addEventListener('beforeunload', function() {
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
+});
+</script>
+{% endblock %} 

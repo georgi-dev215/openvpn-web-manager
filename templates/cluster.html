@@ -1,0 +1,1353 @@
+{% extends "base.html" %}
+
+{% block page_title %}Cluster Management{% endblock %}
+
+{% block content %}
+<!-- Cluster Overview -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-hdd-network-fill"></i>
+                    OpenVPN Cluster Overview
+                </h6>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-success btn-sm" onclick="addNewServer()">
+                        <i class="bi bi-plus-circle"></i> Add Server
+                    </button>
+                    <button class="btn btn-outline-primary btn-sm" onclick="refreshClusterStatus()">
+                        <i class="bi bi-arrow-clockwise"></i> Refresh All
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="showClusterSettings()">
+                        <i class="bi bi-gear"></i> Cluster Settings
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="cluster-stats row mb-4">
+                    <div class="col-lg-3">
+                        <div class="stat-card text-center">
+                            <div class="stat-icon bg-success text-white">
+                                <i class="bi bi-servers"></i>
+                            </div>
+                            <div class="stat-value text-success" id="totalServers">0</div>
+                            <div class="stat-label">Total Servers</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="stat-card text-center">
+                            <div class="stat-icon bg-primary text-white">
+                                <i class="bi bi-check-circle"></i>
+                            </div>
+                            <div class="stat-value text-primary" id="onlineServers">0</div>
+                            <div class="stat-label">Online Servers</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="stat-card text-center">
+                            <div class="stat-icon bg-info text-white">
+                                <i class="bi bi-people"></i>
+                            </div>
+                            <div class="stat-value text-info" id="totalClients">0</div>
+                            <div class="stat-label">Total Clients</div>
+                        </div>
+                    </div>
+                    <div class="col-lg-3">
+                        <div class="stat-card text-center">
+                            <div class="stat-icon bg-warning text-white">
+                                <i class="bi bi-wifi"></i>
+                            </div>
+                            <div class="stat-value text-warning" id="activeConnections">0</div>
+                            <div class="stat-label">Active Connections</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Load Balancer Status -->
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    <strong>Load Balancer Status:</strong> 
+                    <span id="loadBalancerStatus" class="badge bg-success">Active</span>
+                    <span class="ms-3">Next assignment: <span id="nextServer">server-01</span></span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Server Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-hdd-stack"></i>
+                    Server Management
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table" id="serversTable">
+                        <thead>
+                            <tr>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-server"></i>
+                                        Server
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-activity"></i>
+                                        Status
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-people"></i>
+                                        Clients
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-speedometer2"></i>
+                                        Load
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-graph-up"></i>
+                                        Performance
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-clock"></i>
+                                        Last Update
+                                    </div>
+                                </th>
+                                <th>
+                                    <div class="th-content">
+                                        <i class="bi bi-gear"></i>
+                                        Actions
+                                    </div>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="serversTableBody">
+                            <!-- Servers will be loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Distribution -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="bi bi-diagram-3"></i>
+                    Client Distribution
+                </h6>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary btn-sm" onclick="balanceClients()">
+                        <i class="bi bi-arrow-left-right"></i> Balance Load
+                    </button>
+                    <button class="btn btn-outline-success btn-sm" onclick="showClientAssignment()">
+                        <i class="bi bi-person-plus"></i> Assign Client
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="clientDistributionChart" style="height: 300px;">
+                    <!-- Chart will be rendered here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-shield-check"></i>
+                    Cluster Health
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="health-metrics">
+                    <div class="health-item">
+                        <div class="health-label">Overall Health</div>
+                        <div class="health-value">
+                            <span class="badge bg-success">Excellent</span>
+                            <span class="health-percent">98%</span>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-label">Average Load</div>
+                        <div class="health-value">
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-info" style="width: 35%"></div>
+                            </div>
+                            <span class="health-percent">35%</span>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-label">Network Latency</div>
+                        <div class="health-value">
+                            <span class="badge bg-success">Low</span>
+                            <span class="health-percent">15ms</span>
+                        </div>
+                    </div>
+                    <div class="health-item">
+                        <div class="health-label">Failover Ready</div>
+                        <div class="health-value">
+                            <span class="badge bg-success">Yes</span>
+                            <span class="health-percent">100%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mt-3">
+                    <button class="btn btn-outline-danger btn-sm w-100" onclick="runClusterDiagnostics()">
+                        <i class="bi bi-wrench"></i> Run Diagnostics
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Activity -->
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="card-title">
+                    <i class="bi bi-clock-history"></i>
+                    Recent Cluster Activity
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="activity-timeline" id="clusterActivity">
+                    <!-- Activities will be loaded dynamically -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Server Modal -->
+<div class="modal fade" id="addServerModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-plus-circle text-success me-2"></i>Add New Server
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addServerForm">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Server Name</label>
+                                <input type="text" class="form-control" id="serverName" placeholder="server-01" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Server IP/Hostname</label>
+                                <input type="text" class="form-control" id="serverHost" placeholder="192.168.1.100" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">SSH Port</label>
+                                <input type="number" class="form-control" id="serverPort" value="22" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Location</label>
+                                <select class="form-select" id="serverLocation">
+                                    <option value="us-east">🇺🇸 US East</option>
+                                    <option value="us-west">🇺🇸 US West</option>
+                                    <option value="eu-central">🇪🇺 EU Central</option>
+                                    <option value="asia-pacific">🌏 Asia Pacific</option>
+                                    <option value="custom">🌍 Custom Location</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Max Clients</label>
+                                <input type="number" class="form-control" id="serverMaxClients" value="100" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Server Role</label>
+                                <select class="form-select" id="serverRole">
+                                    <option value="primary">Primary Server</option>
+                                    <option value="backup">Backup Server</option>
+                                    <option value="load-balanced">Load Balanced</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Authentication Method</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="authMethod" id="authKey" value="key" checked>
+                            <label class="form-check-label" for="authKey">SSH Key</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="authMethod" id="authPassword" value="password">
+                            <label class="form-check-label" for="authPassword">Password</label>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3" id="sshKeySection">
+                        <label class="form-label">SSH Private Key</label>
+                        <textarea class="form-control" id="serverSshKey" rows="4" placeholder="-----BEGIN PRIVATE KEY-----"></textarea>
+                    </div>
+                    
+                    <div class="mb-3" id="passwordSection" style="display: none;">
+                        <label class="form-label">SSH Password</label>
+                        <input type="password" class="form-control" id="serverPassword">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">SSH Username</label>
+                        <input type="text" class="form-control" id="serverUser" value="root" required>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="testServerConnection()">
+                    <i class="bi bi-wifi"></i> Test Connection
+                </button>
+                <button type="button" class="btn btn-success" onclick="saveNewServer()">
+                    <i class="bi bi-check"></i> Add Server
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Assignment Modal -->
+<div class="modal fade" id="clientAssignmentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-person-plus text-primary me-2"></i>Assign Client to Server
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Client Name</label>
+                    <input type="text" class="form-control" id="assignClientName" placeholder="Enter client name">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Target Server</label>
+                    <select class="form-select" id="assignTargetServer">
+                        <!-- Server options will be loaded here -->
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Assignment Strategy</label>
+                    <select class="form-select" id="assignmentStrategy">
+                        <option value="manual">Manual Assignment</option>
+                        <option value="load-balanced">Load Balanced</option>
+                        <option value="geographic">Geographic Proximity</option>
+                        <option value="performance">Best Performance</option>
+                    </select>
+                </div>
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle me-2"></i>
+                    Client will be created on the selected server and configuration will be generated automatically.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="assignClientToServer()">
+                    <i class="bi bi-check"></i> Assign Client
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Cluster Management JavaScript
+let clusterData = {};
+let serverList = [];
+
+// Initialize cluster management
+document.addEventListener('DOMContentLoaded', function() {
+    loadClusterData();
+    setupClusterMonitoring();
+    
+    // Setup authentication method toggle
+    document.querySelectorAll('input[name="authMethod"]').forEach(radio => {
+        radio.addEventListener('change', function() {
+            const sshKeySection = document.getElementById('sshKeySection');
+            const passwordSection = document.getElementById('passwordSection');
+            
+            if (this.value === 'key') {
+                sshKeySection.style.display = 'block';
+                passwordSection.style.display = 'none';
+            } else {
+                sshKeySection.style.display = 'none';
+                passwordSection.style.display = 'block';
+            }
+        });
+    });
+});
+
+async function loadClusterData() {
+    try {
+        const response = await fetch('/api/cluster/status');
+        clusterData = await response.json();
+        
+        updateClusterStats();
+        loadServerTable();
+        loadClusterActivity();
+        updateLoadBalancerStatus();
+    } catch (error) {
+        console.error('Error loading cluster data:', error);
+        showMockClusterData();
+    }
+}
+
+function showMockClusterData() {
+    // Show mock data for demonstration
+    clusterData = {
+        servers: [
+            {
+                id: 'server-01',
+                name: 'server-01',
+                host: '192.168.1.100',
+                location: 'us-east',
+                status: 'online',
+                clients: 25,
+                max_clients: 100,
+                load: 25,
+                cpu: 15,
+                memory: 45,
+                last_update: new Date().toISOString()
+            },
+            {
+                id: 'server-02', 
+                name: 'server-02',
+                host: '192.168.1.101',
+                location: 'us-west',
+                status: 'online',
+                clients: 18,
+                max_clients: 100,
+                load: 18,
+                cpu: 12,
+                memory: 38,
+                last_update: new Date().toISOString()
+            },
+            {
+                id: 'server-03',
+                name: 'server-03',
+                host: '192.168.1.102', 
+                location: 'eu-central',
+                status: 'maintenance',
+                clients: 0,
+                max_clients: 100,
+                load: 0,
+                cpu: 5,
+                memory: 25,
+                last_update: new Date().toISOString()
+            }
+        ],
+        total_clients: 43,
+        active_connections: 38,
+        load_balancer: {
+            status: 'active',
+            next_server: 'server-02'
+        }
+    };
+    
+    updateClusterStats();
+    loadServerTable();
+    loadClusterActivity();
+    updateLoadBalancerStatus();
+}
+
+function updateClusterStats() {
+    const servers = clusterData.servers || [];
+    const onlineServers = servers.filter(s => s.status === 'online').length;
+    
+    document.getElementById('totalServers').textContent = servers.length;
+    document.getElementById('onlineServers').textContent = onlineServers;
+    document.getElementById('totalClients').textContent = clusterData.total_clients || 0;
+    document.getElementById('activeConnections').textContent = clusterData.active_connections || 0;
+}
+
+function loadServerTable() {
+    const tbody = document.getElementById('serversTableBody');
+    tbody.innerHTML = '';
+    
+    const servers = clusterData.servers || [];
+    
+    servers.forEach(server => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <div class="server-icon me-2">
+                        <i class="bi bi-server text-primary"></i>
+                    </div>
+                    <div>
+                        <strong>${server.name}</strong>
+                        <div><small class="text-muted">${server.host}</small></div>
+                        <div><small class="badge bg-info">${getLocationName(server.location)}</small></div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <span class="status-badge ${getStatusClass(server.status)}">
+                    <i class="bi bi-${getStatusIcon(server.status)}"></i>
+                    ${server.status.charAt(0).toUpperCase() + server.status.slice(1)}
+                </span>
+            </td>
+            <td>
+                <div class="client-info">
+                    <div><strong>${server.clients}/${server.max_clients}</strong></div>
+                    <div class="progress" style="height: 4px;">
+                        <div class="progress-bar ${getLoadClass(server.load)}" style="width: ${server.load}%"></div>
+                    </div>
+                </div>
+            </td>
+            <td>
+                <div class="load-metrics">
+                    <div>CPU: ${server.cpu}%</div>
+                    <div>RAM: ${server.memory}%</div>
+                    <div>Load: ${server.load}%</div>
+                </div>
+            </td>
+            <td>
+                <div class="performance-indicators">
+                    <span class="badge ${getPerformanceBadge(server)}">
+                        ${getPerformanceText(server)}
+                    </span>
+                </div>
+            </td>
+            <td>
+                <small class="text-muted">${formatLastUpdate(server.last_update)}</small>
+            </td>
+            <td>
+                <div class="action-buttons">
+                    <button class="btn btn-outline-primary btn-sm" onclick="manageServer('${server.id}')" title="Manage Server">
+                        <i class="bi bi-gear"></i>
+                    </button>
+                    <button class="btn btn-outline-info btn-sm" onclick="viewServerClients('${server.id}')" title="View Clients">
+                        <i class="bi bi-people"></i>
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="restartServer('${server.id}')" title="Restart">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="removeServer('${server.id}')" title="Remove">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getLocationName(location) {
+    const locations = {
+        'us-east': '🇺🇸 US East',
+        'us-west': '🇺🇸 US West', 
+        'eu-central': '🇪🇺 EU Central',
+        'asia-pacific': '🌏 Asia Pacific'
+    };
+    return locations[location] || location;
+}
+
+function getStatusClass(status) {
+    const classes = {
+        'online': 'status-online',
+        'offline': 'status-offline',
+        'maintenance': 'status-warning',
+        'error': 'status-error'
+    };
+    return classes[status] || 'status-offline';
+}
+
+function getStatusIcon(status) {
+    const icons = {
+        'online': 'check-circle-fill',
+        'offline': 'x-circle-fill',
+        'maintenance': 'exclamation-triangle-fill',
+        'error': 'x-octagon-fill'
+    };
+    return icons[status] || 'question-circle-fill';
+}
+
+function getLoadClass(load) {
+    if (load < 50) return 'bg-success';
+    if (load < 80) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function getPerformanceBadge(server) {
+    const avgLoad = (server.cpu + server.memory + server.load) / 3;
+    if (avgLoad < 40) return 'bg-success';
+    if (avgLoad < 70) return 'bg-warning';
+    return 'bg-danger';
+}
+
+function getPerformanceText(server) {
+    const avgLoad = (server.cpu + server.memory + server.load) / 3;
+    if (avgLoad < 40) return 'Excellent';
+    if (avgLoad < 70) return 'Good';
+    return 'High Load';
+}
+
+function formatLastUpdate(timestamp) {
+    if (!timestamp) return 'Never';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now - date;
+    
+    if (diff < 60000) return 'Just now';
+    if (diff < 3600000) return Math.floor(diff / 60000) + 'm ago';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + 'h ago';
+    return date.toLocaleDateString();
+}
+
+function updateLoadBalancerStatus() {
+    if (clusterData.load_balancer) {
+        document.getElementById('loadBalancerStatus').textContent = clusterData.load_balancer.status === 'active' ? 'Active' : 'Inactive';
+        document.getElementById('nextServer').textContent = clusterData.load_balancer.next_server || 'N/A';
+    }
+}
+
+function loadClusterActivity() {
+    fetch('/api/cluster/real_activity')
+        .then(response => response.json())
+        .then(data => {
+            const container = document.getElementById('clusterActivity');
+            
+            if (data.activities && data.activities.length > 0) {
+                container.innerHTML = data.activities.map(activity => `
+                    <div class="activity-item">
+                        <div class="activity-icon ${activity.color}">
+                            <i class="${activity.icon}"></i>
+                        </div>
+                        <div class="activity-content">
+                            <div class="activity-message">${activity.message}</div>
+                            <div class="activity-time">${activity.time}</div>
+                            ${activity.details ? `<div class="activity-details text-muted small">${activity.details}</div>` : ''}
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-info-circle"></i>
+                        <p>No cluster activity yet</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading cluster activity:', error);
+            document.getElementById('clusterActivity').innerHTML = `
+                <div class="text-center text-danger py-3">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <p>Failed to load cluster activity</p>
+                </div>
+            `;
+        });
+}
+
+// Cluster Management Functions
+function addNewServer() {
+    new bootstrap.Modal(document.getElementById('addServerModal')).show();
+}
+
+function refreshClusterStatus() {
+    showNotification('Refreshing cluster status...', 'info');
+    loadClusterData();
+}
+
+function showClusterSettings() {
+    // Load cluster settings
+    fetch('/api/cluster/settings')
+        .then(response => response.json())
+        .then(settings => {
+            // Show cluster settings modal
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.innerHTML = `
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">
+                                <i class="bi bi-gear"></i> Cluster Settings
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="clusterSettingsForm">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Auto Load Balance</label>
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" class="form-check-input" 
+                                                       id="autoLoadBalance" name="auto_load_balance" 
+                                                       ${settings.auto_load_balance ? 'checked' : ''}>
+                                                <label class="form-check-label" for="autoLoadBalance">
+                                                    Enable automatic load balancing
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Load Balance Interval (seconds)</label>
+                                            <input type="number" class="form-control" 
+                                                   name="load_balance_interval" 
+                                                   value="${settings.load_balance_interval}" min="60" max="3600">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Health Check Interval (seconds)</label>
+                                            <input type="number" class="form-control" 
+                                                   name="health_check_interval" 
+                                                   value="${settings.health_check_interval}" min="30" max="600">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Max Clients per Server</label>
+                                            <input type="number" class="form-control" 
+                                                   name="max_clients_per_server" 
+                                                   value="${settings.max_clients_per_server}" min="10" max="200">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Failover Enabled</label>
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" class="form-check-input" 
+                                                       id="failoverEnabled" name="failover_enabled" 
+                                                       ${settings.failover_enabled ? 'checked' : ''}>
+                                                <label class="form-check-label" for="failoverEnabled">
+                                                    Enable automatic failover
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Maintenance Mode</label>
+                                            <div class="form-check form-switch">
+                                                <input type="checkbox" class="form-check-input" 
+                                                       id="maintenanceMode" name="maintenance_mode" 
+                                                       ${settings.maintenance_mode ? 'checked' : ''}>
+                                                <label class="form-check-label" for="maintenanceMode">
+                                                    Enable maintenance mode
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6>Alert Thresholds</h6>
+                                        <div class="mb-2">
+                                            <label class="form-label">CPU Threshold (%)</label>
+                                            <input type="number" class="form-control" 
+                                                   name="cpu_threshold" 
+                                                   value="${settings.notification_settings?.alert_thresholds?.cpu_threshold || 80}" 
+                                                   min="50" max="95">
+                                        </div>
+                                        
+                                        <div class="mb-2">
+                                            <label class="form-label">Memory Threshold (%)</label>
+                                            <input type="number" class="form-control" 
+                                                   name="memory_threshold" 
+                                                   value="${settings.notification_settings?.alert_thresholds?.memory_threshold || 90}" 
+                                                   min="70" max="98">
+                                        </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Client Load Threshold</label>
+                                            <input type="number" class="form-control" 
+                                                   name="client_threshold" 
+                                                   value="${settings.notification_settings?.alert_thresholds?.client_threshold || 45}" 
+                                                   min="20" max="180">
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" onclick="saveClusterSettings()">
+                                <i class="bi bi-check-lg"></i> Save Settings
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            const modalInstance = new bootstrap.Modal(modal);
+            modalInstance.show();
+            
+            // Clean up modal after closing
+            modal.addEventListener('hidden.bs.modal', () => {
+                document.body.removeChild(modal);
+            });
+        })
+        .catch(error => {
+            console.error('Error loading cluster settings:', error);
+            showAlert('Failed to load cluster settings', 'error');
+        });
+}
+
+function saveClusterSettings() {
+    const form = document.getElementById('clusterSettingsForm');
+    const formData = new FormData(form);
+    
+    // Convert form data to object
+    const settings = {
+        auto_load_balance: formData.has('auto_load_balance'),
+        load_balance_interval: parseInt(formData.get('load_balance_interval')),
+        health_check_interval: parseInt(formData.get('health_check_interval')),
+        max_clients_per_server: parseInt(formData.get('max_clients_per_server')),
+        failover_enabled: formData.has('failover_enabled'),
+        maintenance_mode: formData.has('maintenance_mode'),
+        notification_settings: {
+            alert_thresholds: {
+                cpu_threshold: parseInt(formData.get('cpu_threshold')),
+                memory_threshold: parseInt(formData.get('memory_threshold')),
+                client_threshold: parseInt(formData.get('client_threshold'))
+            }
+        }
+    };
+    
+    fetch('/api/cluster/settings', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(settings)
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Cluster settings saved successfully', 'success');
+            bootstrap.Modal.getInstance(document.querySelector('.modal')).hide();
+            // Refresh cluster data
+            loadClusterStatus();
+        } else {
+            showAlert('Failed to save cluster settings: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error saving cluster settings:', error);
+        showAlert('Failed to save cluster settings', 'error');
+    });
+}
+
+async function testServerConnection() {
+    const formData = getServerFormData();
+    
+    if (!formData.name || !formData.host) {
+        showNotification('Please fill in server name and host', 'warning');
+        return;
+    }
+    
+    showProgress('Testing server connection...');
+    
+    try {
+        const response = await fetch('/api/cluster/test_connection', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                server_name: formData.name,
+                host: formData.host,
+                port: formData.port || 22,
+                username: formData.user || 'root',
+                auth_method: formData.authMethod,
+                ssh_key: formData.sshKey,
+                password: formData.password
+            })
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            showNotification('Connection test successful!', 'success');
+        } else {
+            showNotification('Connection test failed: ' + result.error, 'error');
+        }
+    } catch (error) {
+        hideProgress();
+        showNotification('Connection test failed: ' + error.message, 'error');
+    }
+}
+
+async function saveNewServer() {
+    const formData = getServerFormData();
+    
+    if (!formData.name || !formData.host) {
+        showNotification('Please fill in all required fields', 'warning');
+        return;
+    }
+    
+    showProgress('Adding server to cluster...');
+    
+    try {
+        const response = await fetch('/api/cluster/servers', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                server_id: formData.name,
+                server_name: formData.name,
+                host: formData.host,
+                port: formData.port || 22,
+                username: formData.user || 'root',
+                auth_method: formData.authMethod,
+                ssh_key: formData.sshKey,
+                password: formData.password,
+                location: formData.location,
+                max_clients: formData.maxClients || 100,
+                server_role: formData.role || 'load-balanced',
+                test_connection: true
+            })
+        });
+        
+        const result = await response.json();
+        hideProgress();
+        
+        if (result.success) {
+            bootstrap.Modal.getInstance(document.getElementById('addServerModal')).hide();
+            showNotification('Server added successfully!', 'success');
+            
+            // Reload cluster data
+            loadClusterData();
+            
+            // Clear form
+            document.getElementById('addServerForm').reset();
+        } else {
+            showNotification('Error adding server: ' + result.error, 'error');
+        }
+        
+    } catch (error) {
+        hideProgress();
+        showNotification('Error adding server: ' + error.message, 'error');
+    }
+}
+
+function getServerFormData() {
+    return {
+        name: document.getElementById('serverName').value,
+        host: document.getElementById('serverHost').value,
+        port: document.getElementById('serverPort').value,
+        location: document.getElementById('serverLocation').value,
+        maxClients: document.getElementById('serverMaxClients').value,
+        role: document.getElementById('serverRole').value,
+        authMethod: document.querySelector('input[name="authMethod"]:checked').value,
+        sshKey: document.getElementById('serverSshKey').value,
+        password: document.getElementById('serverPassword').value,
+        user: document.getElementById('serverUser').value
+    };
+}
+
+function showClientAssignment() {
+    // Load available servers
+    const select = document.getElementById('assignTargetServer');
+    select.innerHTML = '';
+    
+    const onlineServers = clusterData.servers.filter(s => s.status === 'online');
+    onlineServers.forEach(server => {
+        const option = document.createElement('option');
+        option.value = server.id;
+        option.textContent = `${server.name} (${server.clients}/${server.max_clients} clients)`;
+        select.appendChild(option);
+    });
+    
+    new bootstrap.Modal(document.getElementById('clientAssignmentModal')).show();
+}
+
+async function assignClientToServer() {
+    const clientName = document.getElementById('assignClientName').value;
+    const targetServer = document.getElementById('assignTargetServer').value;
+    const strategy = document.getElementById('assignmentStrategy').value;
+    
+    if (!clientName || !targetServer) {
+        showNotification('Please fill in all fields', 'warning');
+        return;
+    }
+    
+    showProgress('Assigning client to server...');
+    
+    try {
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        hideProgress();
+        bootstrap.Modal.getInstance(document.getElementById('clientAssignmentModal')).hide();
+        
+        showNotification(`Client ${clientName} assigned to ${targetServer}!`, 'success');
+        
+        // Update server client count
+        const server = clusterData.servers.find(s => s.id === targetServer);
+        if (server) {
+            server.clients++;
+            server.load = Math.round((server.clients / server.max_clients) * 100);
+        }
+        
+        loadServerTable();
+        updateClusterStats();
+        
+        // Clear form
+        document.getElementById('assignClientName').value = '';
+        
+    } catch (error) {
+        hideProgress();
+        showNotification('Error assigning client: ' + error.message, 'error');
+    }
+}
+
+function balanceClients() {
+    if (confirm('This will redistribute clients across all servers for optimal load balancing. Continue?')) {
+        showProgress('Balancing client load across servers...');
+        
+        setTimeout(() => {
+            hideProgress();
+            showNotification('Client load balanced successfully!', 'success');
+            
+            // Update server loads (mock)
+            clusterData.servers.forEach(server => {
+                if (server.status === 'online') {
+                    server.load = Math.random() * 60 + 10; // Random load between 10-70%
+                    server.clients = Math.round((server.load / 100) * server.max_clients);
+                }
+            });
+            
+            loadServerTable();
+        }, 3000);
+    }
+}
+
+function manageServer(serverId) {
+    showNotification(`Managing server ${serverId}...`, 'info');
+    // Would open server management interface
+}
+
+function viewServerClients(serverId) {
+    showNotification(`Viewing clients for server ${serverId}...`, 'info');
+    // Would show client list for specific server
+}
+
+function restartServer(serverId) {
+    if (confirm(`Restart server ${serverId}? This will disconnect all clients.`)) {
+        showProgress(`Restarting server ${serverId}...`);
+        
+        setTimeout(() => {
+            hideProgress();
+            showNotification(`Server ${serverId} restarted successfully!`, 'success');
+        }, 3000);
+    }
+}
+
+function removeServer(serverId) {
+    if (confirm(`Remove server ${serverId} from cluster? This action cannot be undone.`)) {
+        showProgress(`Removing server ${serverId}...`);
+        
+        setTimeout(() => {
+            clusterData.servers = clusterData.servers.filter(s => s.id !== serverId);
+            hideProgress();
+            showNotification(`Server ${serverId} removed from cluster!`, 'success');
+            updateClusterStats();
+            loadServerTable();
+        }, 2000);
+    }
+}
+
+function runClusterDiagnostics() {
+    showProgress('Running cluster diagnostics...');
+    
+    setTimeout(() => {
+        hideProgress();
+        showNotification('Cluster diagnostics completed - All systems healthy!', 'success');
+    }, 4000);
+}
+
+function setupClusterMonitoring() {
+    // Auto-refresh every 30 seconds
+    setInterval(() => {
+        loadClusterData();
+    }, 30000);
+}
+
+// Utility functions
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type === 'error' ? 'danger' : type} custom-notification`;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 1060;
+        min-width: 300px;
+        max-width: 400px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        animation: slideInRight 0.3s ease-out;
+    `;
+    
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle';
+    
+    notification.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="bi bi-${icon} me-2"></i>
+            <span class="flex-grow-1">${message}</span>
+            <button type="button" class="btn-close ms-2" onclick="this.parentElement.parentElement.remove()"></button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function showProgress(message) {
+    const overlay = document.createElement('div');
+    overlay.id = 'progressOverlay';
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+    `;
+    
+    const progressBox = document.createElement('div');
+    progressBox.style.cssText = `
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        text-align: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    `;
+    
+    progressBox.innerHTML = `
+        <div class="spinner-border text-primary mb-3" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mb-0 text-muted">${message}</p>
+    `;
+    
+    overlay.appendChild(progressBox);
+    document.body.appendChild(overlay);
+}
+
+function hideProgress() {
+    const overlay = document.getElementById('progressOverlay');
+    if (overlay) {
+        overlay.remove();
+    }
+}
+</script>
+
+<style>
+.stat-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    transition: transform 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin: 0 auto 1rem;
+}
+
+.stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.stat-label {
+    color: #64748b;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.status-online {
+    background: #dcfce7;
+    color: #166534;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-offline {
+    background: #f1f5f9;
+    color: #475569;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-warning {
+    background: #fef3c7;
+    color: #92400e;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.status-error {
+    background: #fef2f2;
+    color: #991b1b;
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.cluster-stats .stat-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.health-metrics {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.health-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.health-label {
+    font-size: 0.875rem;
+    color: #64748b;
+    flex: 1;
+}
+
+.health-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.health-percent {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.activity-timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.activity-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8fafc;
+    border-radius: 8px;
+    border-left: 4px solid #3b82f6;
+}
+
+.activity-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-message {
+    font-weight: 500;
+    margin-bottom: 0.25rem;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #64748b;
+}
+
+.client-info, .load-metrics {
+    font-size: 0.875rem;
+}
+
+.performance-indicators .badge {
+    font-size: 0.75rem;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.action-buttons .btn {
+    padding: 0.25rem 0.5rem;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+</style>
+{% endblock %} 

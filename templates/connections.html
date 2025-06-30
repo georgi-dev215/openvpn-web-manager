@@ -1,0 +1,973 @@
+{% extends "base.html" %}
+
+{% block page_title %}Active Connections{% endblock %}
+
+{% block content %}
+<!-- Connection Statistics -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stat-primary">
+            <div class="card-body stat-card">
+                <div class="stat-icon">
+                    <i class="bi bi-wifi"></i>
+                </div>
+                <div class="stat-value active-connections-count">{{ active_connections|length }}</div>
+                <div class="stat-label">Active Connections</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-success">
+            <div class="card-body stat-card">
+                <div class="stat-icon">
+                    <i class="bi bi-arrow-up-circle"></i>
+                </div>
+                <div class="stat-value bytes-sent">{{ (server_stats.total_bytes_sent / 1024 / 1024) | round(1) }}</div>
+                <div class="stat-label">MB Sent</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-info">
+            <div class="card-body stat-card">
+                <div class="stat-icon">
+                    <i class="bi bi-arrow-down-circle"></i>
+                </div>
+                <div class="stat-value bytes-received">{{ (server_stats.total_bytes_received / 1024 / 1024) | round(1) }}</div>
+                <div class="stat-label">MB Received</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stat-warning">
+            <div class="card-body stat-card">
+                <div class="stat-icon">
+                    <i class="bi bi-speedometer2"></i>
+                </div>
+                <div class="stat-value">
+                    {{ ((server_stats.total_bytes_sent + server_stats.total_bytes_received) / 1024 / 1024) | round(1) }}
+                </div>
+                <div class="stat-label">Total MB</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Search -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="search-container">
+            <div class="search-box">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" id="connectionSearch" class="form-control search-input" 
+                       placeholder="🔍 Search connections by client name, IP address, or data..." 
+                       onkeyup="searchConnections()" autocomplete="off">
+                <button class="btn btn-outline-secondary search-clear" onclick="clearConnectionSearch()" style="display: none;">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <div class="search-stats" id="searchStats" style="display: none;">
+                <small class="text-muted">Found <span id="searchCount">0</span> connections</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Connections Table -->
+<div class="card connections-card">
+    <div class="card-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="header-info">
+                <h6 class="card-title mb-1">
+                    <i class="bi bi-activity"></i>
+                    Active Connections
+                </h6>
+                <small class="text-muted">
+                    <span id="connectionCount">{{ active_connections|length }}</span> active connections
+                </small>
+            </div>
+            <div class="header-controls d-flex gap-2">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="autoRefresh" checked>
+                    <label class="form-check-label" for="autoRefresh">Auto Refresh</label>
+                </div>
+                <button class="btn btn-outline-primary btn-sm" onclick="refreshConnections()">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh Now
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if active_connections %}
+            <div class="table-responsive">
+                <table class="table" id="connectionsTable">
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Remote Address</th>
+                            <th>Virtual Address</th>
+                            <th>Data Transfer</th>
+                            <th>Online Duration</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for conn in active_connections %}
+                        <tr class="animate-in" data-client="{{ conn.name }}">
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="connection-avatar">
+                                        <i class="bi bi-person-circle"></i>
+                                    </div>
+                                    <div class="ms-2">
+                                        <strong>{{ conn.name }}</strong>
+                                        <div class="connection-meta">
+                                            <small class="text-muted">VPN Client</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="address-info">
+                                    <code class="address-code">{{ conn.real_address }}</code>
+                                    <div class="address-meta">
+                                        <small class="text-muted">Public IP</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="address-info">
+                                    <code class="address-code">{{ conn.virtual_address }}</code>
+                                    <div class="address-meta">
+                                        <small class="text-muted">VPN IP</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="transfer-details">
+                                    <div class="transfer-row">
+                                        <span class="transfer-icon text-success">
+                                            <i class="bi bi-arrow-up"></i>
+                                        </span>
+                                        <span class="transfer-amount">
+                                            {{ (conn.bytes_sent | int / 1024 / 1024) | round(2) if conn.bytes_sent != 'N/A' and conn.bytes_sent != '0' else '0.00' }} MB
+                                        </span>
+                                    </div>
+                                    <div class="transfer-row">
+                                        <span class="transfer-icon text-info">
+                                            <i class="bi bi-arrow-down"></i>
+                                        </span>
+                                        <span class="transfer-amount">
+                                            {{ (conn.bytes_received | int / 1024 / 1024) | round(2) if conn.bytes_received != 'N/A' and conn.bytes_received != '0' else '0.00' }} MB
+                                        </span>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="time-info">
+                                    <div class="online-duration">
+                                        <i class="bi bi-clock-fill text-primary me-1"></i>
+                                        <span class="duration-time">{{ conn.duration_formatted }}</span>
+                                    </div>
+                                    <div class="time-meta">
+                                        <small class="text-muted">
+                                            {% if conn.connected_since != 'N/A' %}
+                                                Since {{ conn.connected_since }}
+                                            {% else %}
+                                                Online time
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div class="status-indicator-cell">
+                                    <div class="status-badge status-online pulse">
+                                        <i class="bi bi-circle-fill"></i>
+                                        Active
+                                    </div>
+                                    <div class="ping-indicator">
+                                        <small class="text-success">
+                                            <i class="bi bi-wifi"></i> Connected
+                                        </small>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="bi bi-wifi-off"></i>
+                </div>
+                <h5>No Active Connections</h5>
+                <p class="text-muted">No clients are currently connected to the VPN server</p>
+                <div class="mt-3">
+                    <a href="{{ url_for('clients_page') }}" class="btn btn-primary">
+                        <i class="bi bi-people me-1"></i>Manage Clients
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Status Indicator -->
+<div class="status-indicator">
+    <div id="statusIndicator" class="badge bg-secondary">
+        <i class="bi bi-arrow-clockwise me-1"></i>
+        <span id="lastUpdate">Updating...</span>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let autoRefreshEnabled = true;
+let updateInterval;
+
+function refreshConnections() {
+    updateConnectionsData();
+}
+
+function updateStatusIndicator(status = 'updating') {
+    const indicator = document.getElementById('statusIndicator');
+    const updateText = document.getElementById('lastUpdate');
+    
+    if (status === 'updating') {
+        indicator.className = 'badge bg-warning';
+        updateText.innerHTML = '<i class="bi bi-arrow-clockwise spin me-1"></i>Updating...';
+    } else if (status === 'success') {
+        indicator.className = 'badge bg-success';
+        updateText.innerHTML = `<i class="bi bi-check-circle me-1"></i>${new Date().toLocaleTimeString()}`;
+    } else if (status === 'error') {
+        indicator.className = 'badge bg-danger';
+        updateText.innerHTML = '<i class="bi bi-exclamation-triangle me-1"></i>Update failed';
+    }
+}
+
+function updateConnectionsData() {
+    if (!autoRefreshEnabled) return;
+    
+    updateStatusIndicator('updating');
+    
+    fetch('/api/activity')
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Update stats
+            updateStatWithAnimation('.active-connections-count', data.active_connections.length);
+            updateStatWithAnimation('.bytes-sent', (data.server_stats.total_bytes_sent / 1024 / 1024).toFixed(1));
+            updateStatWithAnimation('.bytes-received', (data.server_stats.total_bytes_received / 1024 / 1024).toFixed(1));
+            
+            // Update connections table
+            updateConnectionsTable(data.active_connections);
+            
+            updateStatusIndicator('success');
+        })
+        .catch(error => {
+            console.error('Error updating connections data:', error);
+            updateStatusIndicator('error');
+        });
+}
+
+function updateStatWithAnimation(selector, newValue) {
+    const element = document.querySelector(selector);
+    if (element && element.textContent !== newValue.toString()) {
+        element.style.transform = 'scale(1.1)';
+        element.style.transition = 'transform 0.2s ease';
+        
+        setTimeout(() => {
+            element.textContent = newValue;
+            element.style.transform = 'scale(1)';
+        }, 100);
+    }
+}
+
+function updateConnectionsTable(activeConnections) {
+    const connectionsTable = document.getElementById('connectionsTable');
+    if (!connectionsTable) return;
+    
+    const tbody = connectionsTable.querySelector('tbody');
+    const existingRows = Array.from(tbody.querySelectorAll('tr'));
+    const existingClients = existingRows.map(row => row.getAttribute('data-client'));
+    
+    // Remove disconnected clients
+    existingRows.forEach(row => {
+        const clientName = row.getAttribute('data-client');
+        if (!activeConnections.find(conn => conn.name === clientName)) {
+            row.style.opacity = '0.5';
+            row.style.transition = 'opacity 0.3s ease';
+            setTimeout(() => row.remove(), 300);
+        }
+    });
+    
+    // Update existing connections and add new ones
+    activeConnections.forEach(conn => {
+        const existingRow = tbody.querySelector(`tr[data-client="${conn.name}"]`);
+        
+        if (existingRow) {
+            // Update existing row
+            const transferCell = existingRow.querySelector('.transfer-details');
+            const timeCell = existingRow.querySelector('.time-info');
+            
+            const sentMB = conn.bytes_sent !== 'N/A' && conn.bytes_sent !== '0' ? 
+                (parseInt(conn.bytes_sent) / 1024 / 1024).toFixed(2) : '0.00';
+            const receivedMB = conn.bytes_received !== 'N/A' && conn.bytes_received !== '0' ? 
+                (parseInt(conn.bytes_received) / 1024 / 1024).toFixed(2) : '0.00';
+            
+            // Update transfer data
+            transferCell.innerHTML = `
+                <div class="transfer-row">
+                    <span class="transfer-icon text-success">
+                        <i class="bi bi-arrow-up"></i>
+                    </span>
+                    <span class="transfer-amount">${sentMB} MB</span>
+                </div>
+                <div class="transfer-row">
+                    <span class="transfer-icon text-info">
+                        <i class="bi bi-arrow-down"></i>
+                    </span>
+                    <span class="transfer-amount">${receivedMB} MB</span>
+                </div>
+            `;
+            
+            // Update online duration
+            const durationFormatted = conn.duration_formatted || 'N/A';
+            const connectedSince = conn.connected_since !== 'N/A' ? `Since ${conn.connected_since}` : 'Online time';
+            
+            timeCell.innerHTML = `
+                <div class="online-duration">
+                    <i class="bi bi-clock-fill text-primary me-1"></i>
+                    <span class="duration-time">${durationFormatted}</span>
+                </div>
+                <div class="time-meta">
+                    <small class="text-muted">${connectedSince}</small>
+                </div>
+            `;
+        } else if (!existingClients.includes(conn.name)) {
+            // Add new row
+            const newRow = document.createElement('tr');
+            newRow.className = 'animate-in';
+            newRow.setAttribute('data-client', conn.name);
+            
+            const sentMB = conn.bytes_sent !== 'N/A' && conn.bytes_sent !== '0' ? 
+                (parseInt(conn.bytes_sent) / 1024 / 1024).toFixed(2) : '0.00';
+            const receivedMB = conn.bytes_received !== 'N/A' && conn.bytes_received !== '0' ? 
+                (parseInt(conn.bytes_received) / 1024 / 1024).toFixed(2) : '0.00';
+            
+            newRow.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="connection-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="ms-2">
+                            <strong>${conn.name}</strong>
+                            <div class="connection-meta">
+                                <small class="text-muted">VPN Client</small>
+                            </div>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="address-info">
+                        <code class="address-code">${conn.real_address}</code>
+                        <div class="address-meta">
+                            <small class="text-muted">Public IP</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="address-info">
+                        <code class="address-code">${conn.virtual_address}</code>
+                        <div class="address-meta">
+                            <small class="text-muted">VPN IP</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="transfer-details">
+                        <div class="transfer-row">
+                            <span class="transfer-icon text-success">
+                                <i class="bi bi-arrow-up"></i>
+                            </span>
+                            <span class="transfer-amount">${sentMB} MB</span>
+                        </div>
+                        <div class="transfer-row">
+                            <span class="transfer-icon text-info">
+                                <i class="bi bi-arrow-down"></i>
+                            </span>
+                            <span class="transfer-amount">${receivedMB} MB</span>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="time-info">
+                        <div class="online-duration">
+                            <i class="bi bi-clock-fill text-primary me-1"></i>
+                            <span class="duration-time">${conn.duration_formatted || 'N/A'}</span>
+                        </div>
+                        <div class="time-meta">
+                            <small class="text-muted">${conn.connected_since !== 'N/A' ? `Since ${conn.connected_since}` : 'Online time'}</small>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <div class="status-indicator-cell">
+                        <div class="status-badge status-online pulse">
+                            <i class="bi bi-circle-fill"></i>
+                            Active
+                        </div>
+                        <div class="ping-indicator">
+                            <small class="text-success">
+                                <i class="bi bi-wifi"></i> Connected
+                            </small>
+                        </div>
+                    </div>
+                </td>
+            `;
+            
+            tbody.appendChild(newRow);
+        }
+    });
+}
+
+// Auto-refresh toggle
+document.getElementById('autoRefresh')?.addEventListener('change', function() {
+    autoRefreshEnabled = this.checked;
+    if (autoRefreshEnabled) {
+        updateConnectionsData();
+    }
+});
+
+// Real-time duration updates
+let durationUpdateInterval;
+
+function startDurationUpdates() {
+    if (durationUpdateInterval) {
+        clearInterval(durationUpdateInterval);
+    }
+    
+    durationUpdateInterval = setInterval(() => {
+        const durationElements = document.querySelectorAll('.duration-time');
+        
+        durationElements.forEach(element => {
+            const row = element.closest('tr');
+            const clientName = row?.getAttribute('data-client');
+            
+            if (clientName) {
+                updateClientDuration(element);
+            }
+        });
+    }, 1000); // Update every second
+}
+
+function updateClientDuration(element) {
+    const currentText = element.textContent.trim();
+    
+    // Skip if duration is unknown or N/A
+    if (currentText === 'N/A' || currentText === 'Unknown') {
+        return;
+    }
+    
+    try {
+        // Parse current duration and add 1 second
+        const newDuration = addSecondToDuration(currentText);
+        if (newDuration) {
+            element.textContent = newDuration;
+        }
+    } catch (error) {
+        // Silently continue if parsing fails
+    }
+}
+
+function addSecondToDuration(durationStr) {
+    // Parse duration string like "2h 15m 30s" or "45m 12s" or "25s"
+    const dayMatch = durationStr.match(/(\d+)d/);
+    const hourMatch = durationStr.match(/(\d+)h/);
+    const minuteMatch = durationStr.match(/(\d+)m/);
+    const secondMatch = durationStr.match(/(\d+)s/);
+    
+    let days = dayMatch ? parseInt(dayMatch[1]) : 0;
+    let hours = hourMatch ? parseInt(hourMatch[1]) : 0;
+    let minutes = minuteMatch ? parseInt(minuteMatch[1]) : 0;
+    let seconds = secondMatch ? parseInt(secondMatch[1]) : 0;
+    
+    // Add one second
+    seconds++;
+    
+    // Handle overflow
+    if (seconds >= 60) {
+        seconds = 0;
+        minutes++;
+        
+        if (minutes >= 60) {
+            minutes = 0;
+            hours++;
+            
+            if (hours >= 24) {
+                hours = 0;
+                days++;
+            }
+        }
+    }
+    
+    // Format back to string
+    if (days > 0) {
+        return `${days}d ${hours}h ${minutes}m`;
+    } else if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    } else if (minutes > 0) {
+        return `${minutes}m ${seconds}s`;
+    } else {
+        return `${seconds}s`;
+    }
+}
+
+// Start duration updates when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    startDurationUpdates();
+});
+
+// Stop duration updates when page is hidden, restart when visible
+document.addEventListener('visibilitychange', function() {
+    if (document.hidden) {
+        if (durationUpdateInterval) {
+            clearInterval(durationUpdateInterval);
+        }
+    } else {
+        startDurationUpdates();
+    }
+});
+
+function searchConnections() {
+    const searchTerm = document.getElementById('connectionSearch').value.toLowerCase().trim();
+    const connectionRows = document.querySelectorAll('#connectionsTable tbody tr[data-client]');
+    const clearButton = document.querySelector('.search-clear');
+    const searchStats = document.getElementById('searchStats');
+    const searchCount = document.getElementById('searchCount');
+    
+    let visibleCount = 0;
+    
+    // Show/hide clear button
+    clearButton.style.display = searchTerm ? 'block' : 'none';
+    
+    // Search in connections
+    connectionRows.forEach(row => {
+        const clientName = row.getAttribute('data-client').toLowerCase();
+        const rowText = row.textContent.toLowerCase();
+        
+        if (searchTerm === '' || clientName.includes(searchTerm) || rowText.includes(searchTerm)) {
+            row.style.display = '';
+            row.classList.remove('search-hidden');
+            visibleCount++;
+            
+            // Highlight matching text
+            if (searchTerm) {
+                highlightSearchTerm(row, searchTerm);
+            } else {
+                removeHighlight(row);
+            }
+        } else {
+            row.style.display = 'none';
+            row.classList.add('search-hidden');
+        }
+    });
+    
+    // Update search stats
+    if (searchTerm) {
+        searchStats.style.display = 'block';
+        searchCount.textContent = visibleCount;
+    } else {
+        searchStats.style.display = 'none';
+    }
+    
+    // Update connection count
+    document.getElementById('connectionCount').textContent = visibleCount;
+    
+    // Show empty state if no results
+    updateConnectionEmptyState(visibleCount, searchTerm);
+}
+
+function highlightSearchTerm(row, searchTerm) {
+    const cells = row.querySelectorAll('td');
+    cells.forEach(cell => {
+        const originalText = cell.textContent;
+        const regex = new RegExp(`(${escapeRegex(searchTerm)})`, 'gi');
+        const highlightedHTML = originalText.replace(regex, '<mark class="search-highlight">$1</mark>');
+        
+        // Only update if there's a match
+        if (highlightedHTML !== originalText) {
+            cell.innerHTML = highlightedHTML;
+        }
+    });
+}
+
+function removeHighlight(row) {
+    const marks = row.querySelectorAll('mark.search-highlight');
+    marks.forEach(mark => {
+        mark.outerHTML = mark.textContent;
+    });
+}
+
+function escapeRegex(text) {
+    return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function clearConnectionSearch() {
+    document.getElementById('connectionSearch').value = '';
+    searchConnections();
+    document.getElementById('connectionSearch').focus();
+}
+
+function updateConnectionEmptyState(visibleCount, searchTerm) {
+    const tableBody = document.querySelector('#connectionsTable tbody');
+    let emptyMessage = tableBody.querySelector('.search-empty-state');
+    
+    if (visibleCount === 0 && searchTerm) {
+        if (!emptyMessage) {
+            emptyMessage = document.createElement('tr');
+            emptyMessage.className = 'search-empty-state';
+            emptyMessage.innerHTML = `
+                <td colspan="6" class="text-center py-4">
+                    <div class="empty-search-state">
+                        <i class="bi bi-search text-muted" style="font-size: 2rem;"></i>
+                        <p class="mt-2 mb-0">No connections found matching "<strong>${searchTerm}</strong>"</p>
+                        <button class="btn btn-link btn-sm" onclick="clearConnectionSearch()">Clear search</button>
+                    </div>
+                </td>
+            `;
+            tableBody.appendChild(emptyMessage);
+        }
+    } else if (emptyMessage) {
+        emptyMessage.remove();
+    }
+}
+
+// Add styles for connections page
+const style = document.createElement('style');
+style.textContent = `
+    .search-container {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        margin-bottom: 1rem;
+    }
+    
+    .search-box {
+        position: relative;
+        display: flex;
+        align-items: center;
+    }
+    
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        color: #0ea5e9;
+        z-index: 3;
+        font-size: 1.1rem;
+    }
+    
+    .search-input {
+        padding-left: 3rem;
+        padding-right: 3rem;
+        height: 50px;
+        border: 2px solid #e0f2fe;
+        border-radius: 25px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background: white;
+    }
+    
+    .search-input:focus {
+        border-color: #0ea5e9;
+        box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+        transform: translateY(-1px);
+    }
+    
+    .search-clear {
+        position: absolute;
+        right: 8px;
+        border: none;
+        background: transparent;
+        border-radius: 50%;
+        width: 32px;
+        height: 32px;
+        z-index: 3;
+    }
+    
+    .search-stats {
+        margin-top: 0.75rem;
+        text-align: center;
+    }
+    
+    .search-highlight {
+        background: #fef08a;
+        padding: 0.1rem 0.2rem;
+        border-radius: 3px;
+        font-weight: 600;
+    }
+    
+    .connections-card {
+        border: none;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    
+    .connections-card .card-header {
+        background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+        border-bottom: 1px solid #e0f2fe;
+        padding: 1.5rem;
+    }
+    
+    .header-info .card-title {
+        color: #1e293b;
+        font-weight: 600;
+        font-size: 1.1rem;
+    }
+    
+    .header-controls {
+        align-items: center;
+    }
+    
+    .empty-search-state {
+        color: #64748b;
+        padding: 2rem;
+    }
+    
+    .spin {
+        animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+    
+    .animate-in {
+        animation: slideIn 0.3s ease-out;
+    }
+    
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    
+    .connection-avatar {
+        font-size: 1.5rem;
+        color: #3b82f6;
+    }
+    
+    .connection-meta {
+        margin-top: 0.25rem;
+    }
+    
+    .online-duration {
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        color: #1e293b;
+        margin-bottom: 0.25rem;
+    }
+    
+    .online-duration i {
+        color: #3b82f6;
+        margin-right: 0.5rem;
+        font-size: 0.9rem;
+    }
+    
+    .duration-time {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #1e40af;
+        border: 1px solid #93c5fd;
+    }
+    
+    .time-info {
+        text-align: center;
+    }
+    
+    .address-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .address-code {
+        background: #f0f9ff;
+        color: #1e293b;
+        padding: 0.25rem 0.5rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        font-family: 'Courier New', monospace;
+        border: 1px solid #e0f2fe;
+    }
+    
+    .address-meta {
+        margin-top: 0.125rem;
+    }
+    
+    .transfer-details {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .transfer-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.25rem 0.5rem;
+        background: #f8fafc;
+        border-radius: 6px;
+    }
+    
+    .transfer-icon {
+        width: 16px;
+        text-align: center;
+    }
+    
+    .transfer-amount {
+        font-weight: 600;
+        font-size: 0.9rem;
+    }
+    
+    .time-info {
+        display: flex;
+        flex-direction: column;
+    }
+    
+    .connection-time {
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: #1e293b;
+    }
+    
+    .time-meta {
+        margin-top: 0.125rem;
+    }
+    
+    .status-indicator-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .pulse {
+        animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.7;
+        }
+        100% {
+            opacity: 1;
+        }
+    }
+    
+    .ping-indicator {
+        margin-top: 0.25rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 2rem;
+    }
+    
+    .empty-icon {
+        font-size: 4rem;
+        color: #cbd5e1;
+        margin-bottom: 1rem;
+    }
+    
+    /* Enhanced table styling */
+    .table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .table thead th {
+        background: #f0f9ff;
+        border-bottom: 2px solid #e0f2fe;
+        color: #374151;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.75rem;
+        letter-spacing: 0.05em;
+        padding: 1rem;
+    }
+    
+    .table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .table tbody tr:hover {
+        background: #f0f9ff;
+        transform: translateX(4px);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+    }
+    
+    .table tbody td {
+        padding: 1rem;
+        border-bottom: 1px solid #f1f5f9;
+        vertical-align: middle;
+    }
+    
+    /* Status badges enhancement */
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .status-online {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+    }
+    
+    .status-offline {
+        background: #f1f5f9;
+        color: #64748b;
+        border: 1px solid #e2e8f0;
+    }
+`;
+document.head.appendChild(style);
+
+// Start auto-refresh
+document.addEventListener('DOMContentLoaded', function() {
+    updateConnectionsData();
+    updateInterval = setInterval(updateConnectionsData, 10000); // Update every 10 seconds for connections
+});
+
+window.addEventListener('beforeunload', function() {
+    if (updateInterval) {
+        clearInterval(updateInterval);
+    }
+});
+</script>
+{% endblock %} 
