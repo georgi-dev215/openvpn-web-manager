@@ -4,7 +4,7 @@
 
 # OpenVPN Cluster Management System
 
-![OpenVPN Manager](https://img.shields.io/badge/OpenVPN-Manager-blue.svg)
+![OpenVPN Manager](https://img.shields.io/badge/openvpn-web-manager-blue.svg)
 ![Python](https://img.shields.io/badge/Python-3.7+-green.svg)
 ![Flask](https://img.shields.io/badge/Flask-2.0+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
@@ -120,15 +120,15 @@ A comprehensive web-based management system for OpenVPN with advanced cluster ma
 ### Option 1: Automated Installation Script
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/yourusername/openvpn-manager/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/georgi-dev215/openvpn-web-manager/install.sh | bash
 ```
 
 ### Option 2: Manual Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/openvpn-manager.git
-cd openvpn-manager
+git clone https://github.com/georgi-dev215/openvpn-web-manager.git
+cd openvpn-web-manager
 
 # Run installation script
 chmod +x install.sh
@@ -143,8 +143,8 @@ sudo systemctl enable openvpn-webmanager
 
 ```bash
 # Using Docker Compose
-git clone https://github.com/yourusername/openvpn-manager.git
-cd openvpn-manager
+git clone https://github.com/georgi-dev215/openvpn-web-manager.git
+cd openvpn-web-manager
 docker-compose up -d
 ```
 
@@ -388,7 +388,7 @@ ws.onmessage = function(event) {
 version: '3.8'
 
 services:
-  openvpn-manager:
+  openvpn-web-manager:
     build: .
     ports:
       - "8822:8822"
@@ -410,7 +410,7 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf
       - ./ssl:/etc/nginx/ssl
     depends_on:
-      - openvpn-manager
+      - openvpn-web-manager
     restart: unless-stopped
 ```
 
@@ -425,7 +425,7 @@ server {
     ssl_certificate_key /etc/nginx/ssl/key.pem;
     
     location / {
-        proxy_pass http://openvpn-manager:8822;
+        proxy_pass http://openvpn-web-manager:8822;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -507,8 +507,8 @@ top -p $(pgrep -f "python.*app.py")
 
 ```bash
 # Clone repository
-git clone https://github.com/yourusername/openvpn-manager.git
-cd openvpn-manager
+git clone https://github.com/georgi-dev215/openvpn-web-manager.git
+cd openvpn-web-manager
 
 # Create virtual environment
 python3 -m venv venv
@@ -554,10 +554,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 📞 Support
 
-- **Documentation**: [Wiki](https://github.com/yourusername/openvpn-manager/wiki)
-- **Issues**: [GitHub Issues](https://github.com/yourusername/openvpn-manager/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/openvpn-manager/discussions)
-- **Email**: support@your-domain.com
+- **Documentation**: [Wiki](https://github.com/georgi-dev215/openvpn-web-manager/wiki)
+- **Issues**: [GitHub Issues](https://github.com/georgi-dev215/openvpn-web-manager/issues)
+- **Email**: georgidev942@gmail.com
 
 ## 🗺️ Roadmap
 
