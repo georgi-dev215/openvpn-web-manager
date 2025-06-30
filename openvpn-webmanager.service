@@ -1,0 +1,21 @@
+# /etc/systemd/system/openvpn-webmanager.service
+[Unit]
+Description=OpenVPN Web Manager
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/vpn
+Environment="PATH=/opt/vpn/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="FLASK_ENV=production"
+ExecStart=/bin/bash -lc 'source /opt/vpn/venv/bin/activate && exec python app.py'
+Restart=on-failure
+RestartSec=5s
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

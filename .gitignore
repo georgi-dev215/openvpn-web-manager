@@ -1,0 +1,86 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Logs
+*.log
+logs/
+log/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+vpn_history.db*
+
+# Backups
+backups/
+*.bak
+*.backup
+*.tar.gz
+*.zip
+
+# SSL/SSH
+*.key
+*.crt
+*.pem
+ssl/
+ssh-keys/
+
+# OpenVPN
+*.ovpn
+*.conf
+
+# System
+.DS_Store
+Thumbs.db
+
+# Local config
+config_local.py
+.env.local
+user_groups.json
+cluster_settings.json
+
+# Docker
+docker-compose.override.yml
+
+# Temporary
+tmp/
+temp/
+*.tmp
+*.swp
+*~ 

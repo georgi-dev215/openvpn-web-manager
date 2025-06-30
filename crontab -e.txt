@@ -1,0 +1,2 @@
+0 0 * * * /usr/bin/systemctl restart openvpn-server@server.service >> /var/log/openvpn-restart.log 2>&1
+* * * * * /usr/bin/python3 /opt/vpn/check_expired_clients.py >> /var/log/check_expired_clients.log 2>&1
