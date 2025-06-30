@@ -4,7 +4,8 @@
 
 # OpenVPN Cluster Management System
 
-![OpenVPN Manager](https://img.shields.io/badge/openvpn-web-manager-blue.svg)
+![OpenVPN Manager](![image](https://github.com/user-attachments/assets/73564af8-1b63-49de-ac07-a4d541836149)
+)
 ![Python](https://img.shields.io/badge/Python-3.7+-green.svg)
 ![Flask](https://img.shields.io/badge/Flask-2.0+-red.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
